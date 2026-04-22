@@ -205,9 +205,14 @@
              this.models.hedgehog.removeAttribute('wireframe');
           }
 
-          if (newMode === 'pufferfish') this.instructionEl.innerText = '慢慢靠近我，看看我会怎样？';
-          if (newMode === 'octopus') this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
-          if (newMode === 'hedgehog') this.instructionEl.innerText = '嘘...慢慢来，不要跑得太快哦。';
+          // [修改点 1] 未放置前强制显示扫描提示，放置后才显示怪兽台词
+          if (!this.isSpawned) {
+              if (this.instructionEl) this.instructionEl.innerText = '请缓慢移动手机扫描地面，出现发光圆环后点击放置！';
+          } else {
+              if (newMode === 'pufferfish') this.instructionEl.innerText = '慢慢靠近我，看看我会怎样？';
+              if (newMode === 'octopus') this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
+              if (newMode === 'hedgehog') this.instructionEl.innerText = '嘘...慢慢来，不要跑得太快哦。';
+          }
         },
 
         tick: function (time, timeDelta) {
@@ -412,7 +417,15 @@
       
       <a-entity id="rig"><a-camera position="0 1.6 0"></a-camera></a-entity>
 
-      <a-entity id="reticle" geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" material="color: #ffffff; shader: flat; opacity: 0.8; transparent: true" rotation="-90 0 0" visible="false" ar-hit-test-placer="target: #monster-anchor"></a-entity>
+      <!-- [修改点 2] 放大光圈至萤光绿并加入呼吸动画，大幅提升可见度 -->
+      <a-entity id="reticle"
+        geometry="primitive: ring; radiusInner: 0.15; radiusOuter: 0.2"
+        material="color: #00FF00; shader: flat; opacity: 0.9; transparent: true"
+        rotation="-90 0 0"
+        visible="false"
+        ar-hit-test-placer="target: #monster-anchor"
+        animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; dur: 800; loop: true; easing: easeInOutSine">
+      </a-entity>
 
       <!-- 共享锚点基站 -->
       <a-entity id="monster-anchor" visible="false">
