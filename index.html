@@ -132,9 +132,12 @@
           document.getElementById('btn-pufferfish').addEventListener('click', () => this.switchMode('pufferfish'));
           document.getElementById('btn-hedgehog').addEventListener('click', () => this.switchMode('hedgehog'));
 
+          // [\u4fee\u6539\u70b9] \u76d1\u542c\u653e\u7f6e\u6210\u529f\u4e8b\u4ef6\uff0c\u5e76\u7acb\u523b\u5237\u65b0 UI \u53f0\u8bcd
           this.el.addEventListener('monster-spawned', (e) => {
              this.isSpawned = true;
              this.spawnPosition = new THREE.Vector3().copy(e.detail.position);
+             // \u653e\u7f6e\u540e\u7acb\u5373\u91cd\u65b0\u89e6\u53d1\u5f53\u524d\u6a21\u5f0f\uff0cUI \u77ac\u95f4\u5207\u6362\u4e3a\u602a\u517d\u4e92\u52a8\u53f0\u8bcd
+             this.switchMode(this.mode);
           });
 
           this.switchMode(this.mode);
