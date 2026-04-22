@@ -233,10 +233,11 @@
           var horizAnchor = new THREE.Vector3(this.spawnPosition.x, 0, this.spawnPosition.z);
           var surfaceDistance = Math.max(0, horizCam.distanceTo(horizAnchor) - 0.15);
 
-          // [修复二] 速度以「秒」为单位计算，阈值改为 0.4m/s（人正常步行速度）
-          var speed = 0;
+          // [修改点 1] 计算逼近速度 (Approach Velocity)，有方向性
+          // 结果为正 = 正在靠近；结果为负 = 正在后退。去掉 Math.abs() 是关键
+          var approachVelocity = 0;
           if (this.previousDistance !== null && dt > 0) {
-              speed = Math.abs(this.previousDistance - surfaceDistance) / dt;
+              approachVelocity = (this.previousDistance - surfaceDistance) / dt;
           }
           this.previousDistance = surfaceDistance;
 
@@ -275,7 +276,8 @@
 
             case 'hedgehog':
               // 刺猬模式：延迟满足的戒备交互机制
-              if (surfaceDistance < 0.8 && speed > 0.4) {
+              // [修改点 2] 只惩罚快速『靠近』行为，approachVelocity > 0 才代表在接近
+              if (surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
                   
