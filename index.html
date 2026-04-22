@@ -397,6 +397,9 @@
           var xrHitTestSource = this.xrHitTestSource;
           var refSpace = this.refSpace;
 
+          // [\u4fee\u6539\u70b9] \u83b7\u53d6 UI \u6587\u672c\u5143\u7d20
+          var instructionEl = document.getElementById('instruction-text');
+
           if (xrHitTestSource && refSpace) {
             var hitTestResults = frame.getHitTestResults(xrHitTestSource);
             if (hitTestResults.length > 0) {
@@ -404,8 +407,18 @@
               var pose = hit.getPose(refSpace);
               this.el.setAttribute('visible', 'true');
               this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+              // [\u65b0\u589e] \u6293\u5230\u5730\u9762\u65f6\uff0c\u7ed9\u4e88\u5f3a\u70c8\u7684\u7eff\u8272\u89c6\u89c9\u786e\u8ba4
+              if (!this.hasPlaced && instructionEl && instructionEl.innerText !== '\u2705 \u627e\u5230\u5730\u9762\uff01\u8bf7\u70b9\u51fb\u5c4f\u5e55\u653e\u7f6e') {
+                instructionEl.innerText = '\u2705 \u627e\u5230\u5730\u9762\uff01\u8bf7\u70b9\u51fb\u5c4f\u5e55\u653e\u7f6e';
+                instructionEl.style.background = 'rgba(50, 205, 50, 0.8)';
+              }
             } else {
               this.el.setAttribute('visible', 'false');
+              // [\u65b0\u589e] \u4e22\u5931\u5e73\u9762\u65f6\u5f15\u5bfc\u7528\u6237\u79fb\u52a8\u624b\u673a\u5bfb\u627e\u7279\u5f81\u70b9
+              if (!this.hasPlaced && instructionEl && instructionEl.innerText !== '\ud83d\udd0d \u5bfb\u627e\u7279\u5f81\u70b9\u4e2d...\u8bf7\u626b\u89c6\u6709\u7eb9\u7406\u7684\u5730\u9762') {
+                instructionEl.innerText = '\ud83d\udd0d \u5bfb\u627e\u7279\u5f81\u70b9\u4e2d...\u8bf7\u626b\u89c6\u6709\u7eb9\u7406\u7684\u5730\u9762';
+                instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
+              }
             }
           }
         }
