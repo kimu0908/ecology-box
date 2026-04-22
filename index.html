@@ -38,7 +38,11 @@
         background: rgba(0, 0, 0, 0.5); color: white;
         padding: 12px 24px; border-radius: 20px;
         font-family: sans-serif; font-size: 16px; font-weight: 500;
-        text-align: center; white-space: nowrap; pointer-events: none;
+        text-align: center;
+        white-space: normal;
+        max-width: 80%;
+        line-height: 1.4;
+        pointer-events: none;
         animation: breathe 2s infinite ease-in-out;
       }
       @keyframes breathe {
@@ -205,9 +209,14 @@
              this.models.hedgehog.removeAttribute('wireframe');
           }
 
-          // [修改点 1] 未放置前强制显示扫描提示，放置后才显示怪兽台词
+          // [修改点 2] 智慧型 UI 提示逻辑：未放置前显示当前选择的模式 + 引导；放置后显示怪兽台词
+          var modeNames = { 'pufferfish': '河豚', 'octopus': '章鱼', 'hedgehog': '刺猬' };
+          var currentName = modeNames[newMode];
+
           if (!this.isSpawned) {
-              if (this.instructionEl) this.instructionEl.innerText = '请缓慢移动手机扫描地面，出现发光圆环后点击放置！';
+              if (this.instructionEl) {
+                  this.instructionEl.innerText = '已选择【' + currentName + '模式】\n请缓慢扫描地面，出现绿圈后点击放置！';
+              }
           } else {
               if (newMode === 'pufferfish') this.instructionEl.innerText = '慢慢靠近我，看看我会怎样？';
               if (newMode === 'octopus') this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
@@ -218,7 +227,10 @@
         tick: function (time, timeDelta) {
           if (!this.isSpawned || !this.spawnPosition) {
              if (this.uiEl) this.uiEl.innerText = 'Scan & TAP Space';
-             // [修复三] 不在 tick 里覆盖 instructionEl，由 switchMode 统一接管
+             // [修改点 3] 仅在文字为空时才设定初始引导语，不每帧强制覆盖
+             if (this.instructionEl && !this.instructionEl.innerText) {
+                 this.instructionEl.innerText = '请缓慢扫描地面，出现绿圈后点击放置！';
+             }
              return;
           }
 
