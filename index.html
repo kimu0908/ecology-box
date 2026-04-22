@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Border Ecology Box MVP</title>
+    <!-- 引入 A-Frame 核心库 -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <style>
+      #ar-ui-layer {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+        pointer-events: none; 
+      }
+
+      #octopus-screen-filter {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
+        pointer-events: none; display: none;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        background: rgba(50, 205, 50, 0.6);
+        animation: pulse-filter 2s infinite alternate;
+      }
+      @keyframes pulse-filter {
+        0% { background: rgba(50, 205, 50, 0.5); }
+        100% { background: rgba(50, 205, 50, 0.75); }
+      }
+      
+      #distance-ui {
+        position: absolute; top: 20px; left: 20px; z-index: 1001;
+        background: rgba(255, 255, 255, 0.2); 
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white; font-family: monospace; font-size: 20px; 
+        padding: 10px 20px; border-radius: 12px; pointer-events: none;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+      }
+
+      #instruction-text {
+        position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 1001;
+        background: rgba(0, 0, 0, 0.5); color: white;
+        padding: 12px 24px; border-radius: 20px;
+        font-family: sans-serif; font-size: 16px; font-weight: 500;
+        text-align: center; white-space: nowrap; pointer-events: none;
+        animation: breathe 2s infinite ease-in-out;
+      }
+      @keyframes breathe {
+        0% { opacity: 0.7; transform: translateX(-50%) scale(0.98); }
+        50% { opacity: 1; transform: translateX(-50%) scale(1.02); }
+        100% { opacity: 0.7; transform: translateX(-50%) scale(0.98); }
+      }
+
+      #mode-selector {
+        position: absolute; bottom: 30px; width: 100%; z-index: 1001;
+        display: flex; justify-content: center; gap: 20px;
+        pointer-events: none; 
+      }
+
+      .mode-btn {
+        pointer-events: auto;
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%; width: 70px; height: 70px;
+        display: flex; align-items: center; justify-content: center;
+        padding: 0; cursor: pointer; transition: all 0.2s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+      .mode-btn:hover { background: rgba(255, 255, 255, 0.3); }
+      .mode-btn.active {
+        background: rgba(255, 255, 255, 0.6); 
+        border-color: white; box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        transform: scale(1.1);
+      }
+      .mode-btn img {
+        width: 40px; height: 40px; object-fit: contain;
+      }
+    </style>
+
+    <script>
+      AFRAME.registerComponent('ar-game-manager', {
+        schema: {
+          anchor: { type: 'selector' }
+        },
+        init: function () {
+          this.mode = 'pufferfish';
+          this.isSpawned = false;
+          this.spawnPosition = null; 
+          this.prevCameraPos = new THREE.Vector3();
+          
+          this.isOctopusAttached = false;
+          this.octopusCooldown = 0;
+          this.lastAcc = null;
+          this.motionListening = false;
+          
+          // [刺猬猫专有属性]
+          this.previousDistance = null;
+          this.hedgehogState = 'idle'; // 状态: idle, alarm, waiting, friend
+          this.hedgehogTimer = null;
+
+          this.uiEl = document.getElementById('distance-ui');
+          this.modeSelector = document.getElementById('mode-selector');
+          this.instructionEl = document.getElementById('instruction-text');
+          this.octopusFilterEl = document.getElementById('octopus-screen-filter');
+
+          this.models = {
+            pufferfish: document.getElementById('pufferfish'),
+            octopus: document.getElementById('octopus'),
+            hedgehog: document.getElementById('hedgehog')
+          };
+
+          this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
+
+          document.getElementById('btn-octopus').addEventListener('click', () => {
+             if (!this.motionListening) {
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    DeviceMotionEvent.requestPermission().then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('devicemotion', this.handleMotion.bind(this));
+                            this.motionListening = true;
+                        }
+                    }).catch(console.error);
+                } else {
+                    window.addEventListener('devicemotion', this.handleMotion.bind(this));
+                    this.motionListening = true;
+                }
+             }
+             this.switchMode('octopus');
+          });
+
+          document.getElementById('btn-pufferfish').addEventListener('click', () => this.switchMode('pufferfish'));
+          document.getElementById('btn-hedgehog').addEventListener('click', () => this.switchMode('hedgehog'));
+
+          this.el.addEventListener('monster-spawned', (e) => {
+             this.isSpawned = true;
+             this.spawnPosition = new THREE.Vector3().copy(e.detail.position);
+          });
+
+          this.switchMode(this.mode);
+        },
+
+        handleMotion: function(event) {
+             if (this.mode !== 'octopus' || !this.isOctopusAttached) return;
+             
+             var acc = event.accelerationIncludingGravity || event.acceleration;
+             if (!acc || acc.x === null) return;
+             
+             if (this.lastAcc) {
+                 var dx = Math.abs(acc.x - this.lastAcc.x);
+                 var dy = Math.abs(acc.y - this.lastAcc.y);
+                 var dz = Math.abs(acc.z - this.lastAcc.z);
+                 var deltaSum = dx + dy + dz;
+                 
+                 if (deltaSum > 25) {
+                     this.releaseOctopus();
+                 }
+             }
+             this.lastAcc = { x: acc.x, y: acc.y, z: acc.z };
+        },
+
+        releaseOctopus: function() {
+           this.isOctopusAttached = false;
+           this.octopusCooldown = 3; 
+
+           if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'none';
+
+           if (this.models.octopus) {
+               this.models.octopus.setAttribute('visible', 'true');
+               this.models.octopus.object3D.position.set(0, 0, 0); 
+               this.models.octopus.object3D.scale.set(1, 1, 1);
+           }
+           
+           if(this.mode === 'octopus') {
+              this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
+           }
+        },
+
+        switchMode: function (newMode) {
+          if (this.mode === 'octopus' && this.isOctopusAttached) {
+             this.releaseOctopus();
+          }
+
+          this.mode = newMode;
+          if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'none';
+
+          document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+          document.getElementById(`btn-${newMode}`).classList.add('active');
+
+          Object.keys(this.models).forEach(key => {
+             if (!(key === 'octopus' && this.isOctopusAttached)) {
+                 this.models[key].setAttribute('visible', key === newMode);
+             }
+          });
+
+          if (this.models.octopus) {
+             this.models.octopus.object3D.position.set(0, 0, 0); 
+             this.models.octopus.object3D.scale.set(1, 1, 1);
+          }
+          if (this.models.pufferfish) {
+             this.models.pufferfish.object3D.scale.set(1, 1, 1);
+          }
+          // [初始化与重置] 切入或切出刺猬模式时，恢复冷淡怠速状态
+          if (this.models.hedgehog) {
+             this.hedgehogState = 'idle';
+             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
+             this.hedgehogTimer = null;
+             this.models.hedgehog.setAttribute('color', 'darkgray');
+             this.models.hedgehog.removeAttribute('wireframe');
+          }
+
+          if (newMode === 'pufferfish') this.instructionEl.innerText = '慢慢靠近我，看看我会怎样？';
+          if (newMode === 'octopus') this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
+          if (newMode === 'hedgehog') this.instructionEl.innerText = '嘘...慢慢来，不要跑得太快哦。';
+        },
+
+        tick: function (time, timeDelta) {
+          if (!this.isSpawned || !this.spawnPosition) {
+             if (this.uiEl) this.uiEl.innerText = 'Scan & TAP Space';
+             if (this.instructionEl) this.instructionEl.innerText = '请扫描地面并点击屏幕放置基站';
+             return;
+          }
+
+          var cameraEl = document.querySelector('[camera]');
+          var anchorEl = this.data.anchor;
+          if (!cameraEl || !cameraEl.object3D || !anchorEl || !anchorEl.object3D) return;
+
+          anchorEl.object3D.position.copy(this.spawnPosition);
+
+          var currentCamPos = new THREE.Vector3();
+          cameraEl.object3D.getWorldPosition(currentCamPos);
+
+          var dt = timeDelta / 1000;
+          if (this.octopusCooldown > 0) this.octopusCooldown -= dt;
+
+          var horizCam = new THREE.Vector3(currentCamPos.x, 0, currentCamPos.z);
+          var horizAnchor = new THREE.Vector3(this.spawnPosition.x, 0, this.spawnPosition.z);
+          var surfaceDistance = Math.max(0, horizCam.distanceTo(horizAnchor) - 0.15);
+
+          // [新增] 精准的速度帧差演算 (Velocity based on distance delta per frame ms)
+          var speed = 0;
+          if (this.previousDistance !== null && timeDelta > 0) {
+              speed = Math.abs(this.previousDistance - surfaceDistance) / timeDelta;
+          }
+          this.previousDistance = surfaceDistance;
+
+          if (this.uiEl) {
+            this.uiEl.innerText = `[${this.mode.toUpperCase()}]\nDIST: ${surfaceDistance.toFixed(2)}m`;
+            if (this.isOctopusAttached) this.uiEl.innerText = `[${this.mode.toUpperCase()}]\nDIST: STUCK!`;
+          }
+
+          var pMesh = this.models.pufferfish.object3D;
+          var oMesh = this.models.octopus.object3D;
+
+          switch (this.mode) {
+            case 'pufferfish':
+              if (surfaceDistance < 0.6) {
+                 pMesh.scale.lerp(new THREE.Vector3(1.2, 0.3, 1.2), 0.15);
+              } else {
+                 pMesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15);
+              }
+              break;
+
+            case 'octopus':
+              if (!this.isOctopusAttached) {
+                 if (surfaceDistance < 0.5 && this.octopusCooldown <= 0) {
+                     this.isOctopusAttached = true;
+                     this.models.octopus.setAttribute('visible', 'false');
+                     if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'block';
+                     if (this.instructionEl.innerText !== '哎呀！快用力晃晃手机把我甩掉！') {
+                         this.instructionEl.innerText = '哎呀！快用力晃晃手机把我甩掉！';
+                     }
+                 } else {
+                     oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                     oMesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+                 }
+              }
+              break;
+
+            case 'hedgehog':
+              // 刺猬模式：延迟满足的戒备交互机制
+              if (surfaceDistance < 0.8 && speed > 0.002) {
+                  // 1. 刚性防御：冲破阈值，触发报错机制
+                  this.hedgehogState = 'alarm';
+                  
+                  if (this.hedgehogTimer) {
+                      clearTimeout(this.hedgehogTimer);
+                      this.hedgehogTimer = null;
+                  }
+                  
+                  this.models.hedgehog.setAttribute('color', '#FF0000');
+                  this.models.hedgehog.setAttribute('wireframe', 'true');
+                  
+                  if (this.instructionEl.innerText !== '警报！你吓到我了，退后！') {
+                      this.instructionEl.innerText = '警报！你吓到我了，退后！';
+                  }
+              } 
+              else if (surfaceDistance >= 0.8) {
+                  // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
+                  if (this.hedgehogState === 'alarm') {
+                      this.hedgehogState = 'waiting';
+                      
+                      if (this.instructionEl.innerText !== '嘘...保持这个距离，安静等 3 秒钟...') {
+                          this.instructionEl.innerText = '嘘...保持这个距离，安静等 3 秒钟...';
+                      }
+                      
+                      this.hedgehogTimer = setTimeout(() => {
+                          // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
+                          if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
+                              this.hedgehogState = 'friend';
+                              this.models.hedgehog.setAttribute('color', 'darkgray');
+                              this.models.hedgehog.removeAttribute('wireframe');
+                              this.instructionEl.innerText = '谢谢你的耐心，现在我们是朋友了。';
+                          }
+                      }, 3000); // 3 秒耐心考验
+                  }
+              }
+              break;
+          }
+        }
+      });
+
+      AFRAME.registerComponent('ar-hit-test-placer', {
+        schema: {
+          target: { type: 'selector' }
+        },
+        init: function () {
+          this.xrHitTestSource = null;
+          this.viewerSpace = null;
+          this.refSpace = null;
+
+          this.el.sceneEl.addEventListener('enter-vr', () => {
+            if (!this.el.sceneEl.is('ar-mode')) return;
+            var session = this.el.sceneEl.renderer.xr.getSession();
+            
+            session.requestReferenceSpace('viewer').then((space) => {
+              this.viewerSpace = space;
+              session.requestHitTestSource({ space: this.viewerSpace }).then((hitTestSource) => {
+                this.xrHitTestSource = hitTestSource;
+              });
+            });
+
+            session.requestReferenceSpace('local-floor').then((space) => {
+              this.refSpace = space;
+            });
+
+            session.addEventListener('select', (event) => {
+              if (!this.el.getAttribute('visible')) return; 
+              var anchorEl = this.data.target;
+              if (anchorEl) {
+                var reticlePos = this.el.object3D.position;
+                var finalSpawnPos = new THREE.Vector3(reticlePos.x, reticlePos.y + 0.15, reticlePos.z);
+                anchorEl.setAttribute('position', { x: finalSpawnPos.x, y: finalSpawnPos.y, z: finalSpawnPos.z });
+                anchorEl.setAttribute('visible', 'true');
+                this.el.sceneEl.emit('monster-spawned', { position: finalSpawnPos });
+              }
+            });
+          });
+        },
+        tick: function () {
+          if (!this.el.sceneEl.is('ar-mode')) return;
+          var frame = this.el.sceneEl.frame;
+          if (!frame) return;
+
+          var xrHitTestSource = this.xrHitTestSource;
+          var refSpace = this.refSpace;
+
+          if (xrHitTestSource && refSpace) {
+            var hitTestResults = frame.getHitTestResults(xrHitTestSource);
+            if (hitTestResults.length > 0) {
+              var hit = hitTestResults[0];
+              var pose = hit.getPose(refSpace);
+              this.el.setAttribute('visible', 'true');
+              this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+            } else {
+              this.el.setAttribute('visible', 'false');
+            }
+          }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <!-- DOM Overlay系统（UI面板） -->
+    <div id="ar-ui-layer">
+      
+      <!-- [新增] 2D 全萤幕绿色贴脸糊层 -->
+      <div id="octopus-screen-filter"></div>
+
+      <div id="distance-ui">Initializing AR...</div>
+      <div id="instruction-text">Initializing Engine...</div>
+
+      <div id="mode-selector">
+        <button class="mode-btn active" id="btn-pufferfish">
+          <img src="icon-puffer.png" alt="河豚">
+        </button>
+        <button class="mode-btn" id="btn-octopus">
+          <img src="icon-octopus.png" alt="章鱼">
+        </button>
+        <button class="mode-btn" id="btn-hedgehog">
+          <img src="icon-hedgehog.png" alt="刺猬">
+        </button>
+      </div>
+    </div>
+
+    <!-- 并入 ar-game-manager -->
+    <a-scene ar-game-manager="anchor: #monster-anchor" webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay; overlayElement: #ar-ui-layer;">
+      
+      <a-entity id="rig"><a-camera position="0 1.6 0"></a-camera></a-entity>
+
+      <a-entity id="reticle" geometry="primitive: ring; radiusInner: 0.1; radiusOuter: 0.15" material="color: #ffffff; shader: flat; opacity: 0.8; transparent: true" rotation="-90 0 0" visible="false" ar-hit-test-placer="target: #monster-anchor"></a-entity>
+
+      <!-- 共享锚点基站 -->
+      <a-entity id="monster-anchor" visible="false">
+         <a-sphere id="pufferfish" position="0 0 0" radius="0.15" color="pink"></a-sphere>
+         <a-torus id="octopus" position="0 0 0" radius="0.15" radius-tubular="0.04" color="green" opacity="0.6" transparent="true"></a-torus>
+         <a-icosahedron id="hedgehog" position="0 0 0" radius="0.15" color="darkgray" detail="1"></a-icosahedron>
+      </a-entity>
+
+      <a-plane visible="false" position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
+      <a-entity light="type: ambient; color: #BBB"></a-entity>
+      <a-entity light="type: directional; color: #FFF; intensity: 0.6" position="-0.5 1 1"></a-entity>
+      
+    </a-scene>
+  </body>
+</html>
