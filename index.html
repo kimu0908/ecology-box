@@ -132,12 +132,20 @@
           document.getElementById('btn-pufferfish').addEventListener('click', () => this.switchMode('pufferfish'));
           document.getElementById('btn-hedgehog').addEventListener('click', () => this.switchMode('hedgehog'));
 
-          // [\u4fee\u6539\u70b9] \u76d1\u542c\u653e\u7f6e\u6210\u529f\u4e8b\u4ef6\uff0c\u5e76\u7acb\u523b\u5237\u65b0 UI \u53f0\u8bcd
+          // [\u4fee\u6539\u70b9] \u76d1\u542c\u653e\u7f6e\u6210\u529f\u4e8b\u4ef6\uff0c\u843d\u5730\u77ac\u95f4\u5f3a\u5236\uff08\u66b4\u529b\uff09\u8986\u5199 UI \u6587\u5b57
           this.el.addEventListener('monster-spawned', (e) => {
              this.isSpawned = true;
              this.spawnPosition = new THREE.Vector3().copy(e.detail.position);
-             // \u653e\u7f6e\u540e\u7acb\u5373\u91cd\u65b0\u89e6\u53d1\u5f53\u524d\u6a21\u5f0f\uff0cUI \u77ac\u95f4\u5207\u6362\u4e3a\u602a\u517d\u4e92\u52a8\u53f0\u8bcd
-             this.switchMode(this.mode);
+             // \u7edd\u4e0d\u4f9d\u8d56\u5916\u90e8\u51fd\u6570\uff0c\u843d\u5730\u77ac\u95f4\u76f4\u63a5\u5224\u65ad\u5f53\u524d\u6a21\u5f0f\u5e76\u5199\u5165\u53f0\u8bcd\uff01
+             if (this.instructionEl) {
+                 if (this.mode === 'pufferfish') {
+                     this.instructionEl.innerText = '\u6162\u6162\u9760\u8fd1\u6211\uff0c\u770b\u770b\u6211\u4f1a\u600e\u6837\uff1f';
+                 } else if (this.mode === 'octopus') {
+                     this.instructionEl.innerText = '\u5c0f\u5fc3\uff01\u9760\u5f97\u592a\u8fd1\u6211\u53ef\u662f\u4f1a\u7c98\u4eba\u7684\uff01';
+                 } else if (this.mode === 'hedgehog') {
+                     this.instructionEl.innerText = '\u5618...\u6162\u6162\u6765\uff0c\u4e0d\u8981\u8dd1\u5f97\u592a\u5feb\u54e6\u3002';
+                 }
+             }
           });
 
           this.switchMode(this.mode);
