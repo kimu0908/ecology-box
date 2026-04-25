@@ -98,6 +98,7 @@
           this.previousDistance = null;
           this.hedgehogState = 'idle'; // 状态: idle, alarm, waiting, friend
           this.hedgehogTimer = null;
+          this.hedgehogOriginalMaterials = []; // 保存原始材质以便恢复
 
           this.uiEl = document.getElementById('distance-ui');
           this.modeSelector = document.getElementById('mode-selector');
@@ -149,6 +150,12 @@
           });
 
           this.switchMode(this.mode);
+
+          // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
+          var self = this;
+          this.models.hedgehog.addEventListener('model-loaded', function() {
+              self.saveHedgehogMaterial();
+          });
         },
 
         handleMotion: function(event) {
@@ -216,8 +223,7 @@
              this.hedgehogState = 'idle';
              if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
              this.hedgehogTimer = null;
-             this.models.hedgehog.setAttribute('color', 'darkgray');
-             this.models.hedgehog.removeAttribute('wireframe');
+             this.restoreHedgehogMaterial();
           }
 
           // [修改点 2] 智慧型 UI 提示逻辑：未放置前显示当前选择的模式 + 引导；放置后显示怪兽台词
@@ -314,8 +320,7 @@
                       this.hedgehogTimer = null;
                   }
                   
-                  this.models.hedgehog.setAttribute('color', '#FF0000');
-                  this.models.hedgehog.setAttribute('wireframe', 'true');
+                  this.setGltfMaterial(this.models.hedgehog, { color: '#FF0000', wireframe: true });
                   
                   if (this.instructionEl.innerText !== '警报！你吓到我了，退后！') {
                       this.instructionEl.innerText = '警报！你吓到我了，退后！';
@@ -334,8 +339,7 @@
                           // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
-                              this.models.hedgehog.setAttribute('color', 'darkgray');
-                              this.models.hedgehog.removeAttribute('wireframe');
+                              this.restoreHedgehogMaterial();
                               this.instructionEl.innerText = '谢谢你的耐心，现在我们是朋友了。';
                           }
                       }, 3000); // 3 秒耐心考验
@@ -343,6 +347,42 @@
               }
               break;
           }
+        },
+        // === GLTF 材质操作工具 ===
+        setGltfMaterial: function(el, opts) {
+            el.object3D.traverse(function(child) {
+                if (child.isMesh && child.material) {
+                    if (opts.color) child.material.color.set(opts.color);
+                    if (opts.wireframe !== undefined) child.material.wireframe = opts.wireframe;
+                }
+            });
+        },
+
+        restoreHedgehogMaterial: function() {
+            var self = this;
+            if (this.hedgehogOriginalMaterials.length > 0) {
+                // 恢复保存的原始材质
+                var i = 0;
+                this.models.hedgehog.object3D.traverse(function(child) {
+                    if (child.isMesh && self.hedgehogOriginalMaterials[i]) {
+                        child.material = self.hedgehogOriginalMaterials[i].clone();
+                        i++;
+                    }
+                });
+            } else {
+                // 如果还没保存过，只重置颜色和线框
+                this.setGltfMaterial(this.models.hedgehog, { color: '#888888', wireframe: false });
+            }
+        },
+
+        saveHedgehogMaterial: function() {
+            if (this.hedgehogOriginalMaterials.length > 0) return; // 只保存一次
+            var self = this;
+            this.models.hedgehog.object3D.traverse(function(child) {
+                if (child.isMesh && child.material) {
+                    self.hedgehogOriginalMaterials.push(child.material.clone());
+                }
+            });
         }
       });
 
@@ -463,11 +503,12 @@
         animation="property: scale; from: 1 1 1; to: 1.3 1.3 1.3; dir: alternate; dur: 800; loop: true; easing: easeInOutSine">
       </a-entity>
 
-      <!-- 共享锚点基站 -->
+      <!-- 共享锚点基站：使用 GLTF 3D 模型 -->
       <a-entity id="monster-anchor" visible="false">
-         <a-sphere id="pufferfish" position="0 0 0" radius="0.15" color="pink"></a-sphere>
-         <a-torus id="octopus" position="0 0 0" radius="0.15" radius-tubular="0.04" color="green" opacity="0.6" transparent="true"></a-torus>
-         <a-icosahedron id="hedgehog" position="0 0 0" radius="0.15" color="darkgray" detail="1"></a-icosahedron>
+         <a-entity id="pufferfish" position="0 0 0" scale="0.15 0.15 0.15" gltf-model="assets/pufferfish.glb"></a-entity>
+         <a-entity id="octopus" position="0 0 0" scale="0.15 0.15 0.15" gltf-model="assets/octopus.glb"></a-entity>
+         <a-entity id="hedgehog" position="0 0 0" scale="0.15 0.15 0.15" gltf-model="assets/hedgehog.glb"
+           event-set__loaded="_event: model-loaded; _target: #hedgehog"></a-entity>
       </a-entity>
 
       <a-plane visible="false" position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
