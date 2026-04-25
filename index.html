@@ -151,8 +151,36 @@
 
           this.switchMode(this.mode);
 
-          // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
+          // === 模型加载后清理：删除模型内嵌的巨大背景平面 ===
           var self = this;
+
+          function cleanupModel(el) {
+              el.addEventListener('model-loaded', function() {
+                  var toRemove = [];
+                  el.object3D.traverse(function(child) {
+                      if (child.isMesh) {
+                          child.geometry.computeBoundingBox();
+                          var box = child.geometry.boundingBox;
+                          var size = new THREE.Vector3();
+                          box.getSize(size);
+                          // 如果某个 mesh 的任何一个维度超过 5 单位，判定为背景/地面
+                          if (size.x > 5 || size.y > 5 || size.z > 5) {
+                              toRemove.push(child);
+                          }
+                      }
+                  });
+                  toRemove.forEach(function(mesh) {
+                      mesh.parent.remove(mesh);
+                      console.log('Removed background mesh:', mesh.name, mesh.geometry.boundingBox);
+                  });
+              });
+          }
+
+          cleanupModel(this.models.pufferfish);
+          cleanupModel(this.models.octopus);
+          cleanupModel(this.models.hedgehog);
+
+          // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
           this.models.hedgehog.addEventListener('model-loaded', function() {
               self.saveHedgehogMaterial();
           });
