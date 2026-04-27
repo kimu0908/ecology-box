@@ -111,6 +111,18 @@
             hedgehog: document.getElementById('hedgehog')
           };
 
+          this.visuals = {
+            pufferfish: document.getElementById('pufferfish-model'),
+            octopus: document.getElementById('octopus-model'),
+            hedgehog: document.getElementById('hedgehog-model')
+          };
+
+          this.visualScales = {
+            pufferfishNormal: new THREE.Vector3(0.005, 0.005, 0.005),
+            pufferfishPressed: new THREE.Vector3(0.006, 0.0015, 0.006),
+            octopusNormal: new THREE.Vector3(0.005, 0.005, 0.005)
+          };
+
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
 
           document.getElementById('btn-octopus').addEventListener('click', () => {
@@ -155,6 +167,7 @@
           var self = this;
 
           function cleanupModel(el) {
+              if (!el) return;
               el.addEventListener('model-loaded', function() {
                   var toRemove = [];
                   el.object3D.traverse(function(child) {
@@ -176,12 +189,12 @@
               });
           }
 
-          cleanupModel(this.models.pufferfish);
-          cleanupModel(this.models.octopus);
-          cleanupModel(this.models.hedgehog);
+          cleanupModel(this.visuals.pufferfish);
+          cleanupModel(this.visuals.octopus);
+          cleanupModel(this.visuals.hedgehog);
 
           // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
-          this.models.hedgehog.addEventListener('model-loaded', function() {
+          if (this.visuals.hedgehog) this.visuals.hedgehog.addEventListener('model-loaded', function() {
               self.saveHedgehogMaterial();
           });
         },
@@ -213,8 +226,10 @@
 
            if (this.models.octopus) {
                this.models.octopus.setAttribute('visible', 'true');
-               this.models.octopus.object3D.position.set(0, 0, 0); 
-               this.models.octopus.object3D.scale.set(1, 1, 1);
+           }
+           if (this.visuals.octopus) {
+               this.visuals.octopus.object3D.position.set(0, 0, 0); 
+               this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
            }
            
            if(this.mode === 'octopus') {
@@ -239,12 +254,12 @@
              }
           });
 
-          if (this.models.octopus) {
-             this.models.octopus.object3D.position.set(0, 0, 0); 
-             this.models.octopus.object3D.scale.set(1, 1, 1);
+          if (this.visuals.octopus) {
+             this.visuals.octopus.object3D.position.set(0, 0, 0); 
+             this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
           }
-          if (this.models.pufferfish) {
-             this.models.pufferfish.object3D.scale.set(1, 1, 1);
+          if (this.visuals.pufferfish) {
+             this.visuals.pufferfish.object3D.scale.copy(this.visualScales.pufferfishNormal);
           }
           // [初始化与重置] 切入或切出刺猬模式时，恢复冷淡怠速状态
           if (this.models.hedgehog) {
@@ -308,15 +323,16 @@
             if (this.isOctopusAttached) this.uiEl.innerText = `[${this.mode.toUpperCase()}]\nDIST: STUCK!`;
           }
 
-          var pMesh = this.models.pufferfish.object3D;
-          var oMesh = this.models.octopus.object3D;
+          if (!this.visuals.pufferfish || !this.visuals.octopus) return;
+          var pMesh = this.visuals.pufferfish.object3D;
+          var oMesh = this.visuals.octopus.object3D;
 
           switch (this.mode) {
             case 'pufferfish':
               if (surfaceDistance < 0.6) {
-                 pMesh.scale.lerp(new THREE.Vector3(1.2, 0.3, 1.2), 0.15);
+                 pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
               } else {
-                 pMesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.15);
+                 pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
               }
               break;
 
@@ -331,7 +347,7 @@
                      }
                  } else {
                      oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
-                     oMesh.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
+                     oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
                  }
               }
               break;
@@ -348,7 +364,7 @@
                       this.hedgehogTimer = null;
                   }
                   
-                  this.setGltfMaterial(this.models.hedgehog, { color: '#FF0000', wireframe: true });
+                  this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF0000', wireframe: true });
                   
                   if (this.instructionEl.innerText !== '警报！你吓到我了，退后！') {
                       this.instructionEl.innerText = '警报！你吓到我了，退后！';
@@ -378,6 +394,7 @@
         },
         // === GLTF 材质操作工具 ===
         setGltfMaterial: function(el, opts) {
+            if (!el || !el.object3D) return;
             el.object3D.traverse(function(child) {
                 if (child.isMesh && child.material) {
                     if (opts.color) child.material.color.set(opts.color);
@@ -387,11 +404,12 @@
         },
 
         restoreHedgehogMaterial: function() {
+            if (!this.visuals.hedgehog || !this.visuals.hedgehog.object3D) return;
             var self = this;
             if (this.hedgehogOriginalMaterials.length > 0) {
                 // 恢复保存的原始材质
                 var i = 0;
-                this.models.hedgehog.object3D.traverse(function(child) {
+                this.visuals.hedgehog.object3D.traverse(function(child) {
                     if (child.isMesh && self.hedgehogOriginalMaterials[i]) {
                         child.material = self.hedgehogOriginalMaterials[i].clone();
                         i++;
@@ -399,14 +417,15 @@
                 });
             } else {
                 // 如果还没保存过，只重置颜色和线框
-                this.setGltfMaterial(this.models.hedgehog, { color: '#888888', wireframe: false });
+                this.setGltfMaterial(this.visuals.hedgehog, { color: '#888888', wireframe: false });
             }
         },
 
         saveHedgehogMaterial: function() {
+            if (!this.visuals.hedgehog || !this.visuals.hedgehog.object3D) return;
             if (this.hedgehogOriginalMaterials.length > 0) return; // 只保存一次
             var self = this;
-            this.models.hedgehog.object3D.traverse(function(child) {
+            this.visuals.hedgehog.object3D.traverse(function(child) {
                 if (child.isMesh && child.material) {
                     self.hedgehogOriginalMaterials.push(child.material.clone());
                 }
@@ -518,6 +537,11 @@
 
     <!-- 并入 ar-game-manager -->
     <a-scene ar-game-manager="anchor: #monster-anchor" webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay; overlayElement: #ar-ui-layer;">
+      <a-assets>
+        <a-asset-item id="asset-pufferfish" src="assets/pufferfish.glb"></a-asset-item>
+        <a-asset-item id="asset-octopus" src="assets/octopus.glb"></a-asset-item>
+        <a-asset-item id="asset-hedgehog" src="assets/hedgehog.glb"></a-asset-item>
+      </a-assets>
       
       <a-entity id="rig"><a-camera position="0 1.6 0"></a-camera></a-entity>
 
@@ -533,10 +557,15 @@
 
       <!-- 共享锚点基站：使用 GLTF 3D 模型 -->
       <a-entity id="monster-anchor" visible="false">
-         <a-entity id="pufferfish" position="0 0 0" scale="0.005 0.005 0.005" gltf-model="assets/pufferfish.glb"></a-entity>
-         <a-entity id="octopus" position="0 0 0" scale="0.005 0.005 0.005" gltf-model="assets/octopus.glb"></a-entity>
-         <a-entity id="hedgehog" position="0 0 0" scale="0.25 0.25 0.25" gltf-model="assets/hedgehog.glb"
-           event-set__loaded="_event: model-loaded; _target: #hedgehog"></a-entity>
+         <a-entity id="pufferfish" position="0 0 0">
+           <a-gltf-model id="pufferfish-model" src="#asset-pufferfish" scale="0.005 0.005 0.005"></a-gltf-model>
+         </a-entity>
+         <a-entity id="octopus" position="0 0 0">
+           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.005 0.005 0.005"></a-gltf-model>
+         </a-entity>
+         <a-entity id="hedgehog" position="0 0 0">
+           <a-gltf-model id="hedgehog-model" src="#asset-hedgehog" scale="0.25 0.25 0.25"></a-gltf-model>
+         </a-entity>
       </a-entity>
 
       <a-plane visible="false" position="0 0 -4" rotation="-90 0 0" width="10" height="10" color="#7BC8A4"></a-plane>
