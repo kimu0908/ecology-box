@@ -34,11 +34,24 @@
       }
 
       #placement-debug {
-        position: absolute; top: 20px; right: 20px; z-index: 1001;
+        position: absolute; right: 12px; bottom: 112px; z-index: 1002;
+        pointer-events: none; text-align: right;
+      }
+      #placement-debug-toggle {
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.45); color: #00ff88;
+        border: 1px solid rgba(0, 255, 136, 0.5);
+        border-radius: 6px; padding: 5px 8px;
+        font-family: monospace; font-size: 11px;
+      }
+      #placement-debug-body {
+        display: none; margin-top: 6px;
         background: rgba(0, 0, 0, 0.55); color: #00ff88;
-        font-family: monospace; font-size: 11px; line-height: 1.35;
-        padding: 8px 10px; border-radius: 8px; pointer-events: none;
-        white-space: pre; display: none;
+        font-family: monospace; font-size: 10px; line-height: 1.3;
+        padding: 7px 8px; border-radius: 6px; white-space: pre;
+      }
+      #placement-debug.expanded #placement-debug-body {
+        display: block;
       }
 
       #instruction-text {
@@ -113,7 +126,10 @@
           this.instructionEl = document.getElementById('instruction-text');
           this.octopusFilterEl = document.getElementById('octopus-screen-filter');
           this.placementDebugEl = document.getElementById('placement-debug');
+          this.placementDebugBodyEl = document.getElementById('placement-debug-body');
+          this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
           this.placementDebugEnabled = true;
+          this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
           this.reticlePosition = null;
 
@@ -132,10 +148,17 @@
           this.visualScales = {
             pufferfishNormal: new THREE.Vector3(0.002, 0.002, 0.002),
             pufferfishPressed: new THREE.Vector3(0.0024, 0.0006, 0.0024),
-            octopusNormal: new THREE.Vector3(0.35, 0.35, 0.35)
+            octopusNormal: new THREE.Vector3(0.22, 0.22, 0.22)
           };
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
+          if (this.placementDebugToggleEl) {
+             this.placementDebugToggleEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.placementDebugToggleEl.addEventListener('click', () => {
+                this.placementDebugExpanded = !this.placementDebugExpanded;
+                this.placementDebugEl.classList.toggle('expanded', this.placementDebugExpanded);
+             });
+          }
 
           document.getElementById('btn-octopus').addEventListener('click', () => {
              if (!this.motionListening) {
@@ -165,6 +188,7 @@
              Object.keys(this.models).forEach(key => {
                  this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
              });
+             this.showAnimal(this.mode);
              // \u7edd\u4e0d\u4f9d\u8d56\u5916\u90e8\u51fd\u6570\uff0c\u843d\u5730\u77ac\u95f4\u76f4\u63a5\u5224\u65ad\u5f53\u524d\u6a21\u5f0f\u5e76\u5199\u5165\u53f0\u8bcd\uff01
              if (this.instructionEl) {
                  if (this.mode === 'pufferfish') {
@@ -274,11 +298,7 @@
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
 
-          Object.keys(this.models).forEach(key => {
-             if (!(key === 'octopus' && this.isOctopusAttached)) {
-                 this.models[key].setAttribute('visible', key === newMode);
-             }
-          });
+          this.showAnimal(newMode);
 
           if (this.visuals.octopus) {
              this.visuals.octopus.object3D.position.set(0, 0, 0); 
@@ -417,6 +437,18 @@
               break;
           }
         },
+        
+        hideAllAnimals: function() {
+          Object.keys(this.models).forEach(key => {
+             this.models[key].setAttribute('visible', 'false');
+          });
+        },
+
+        showAnimal: function(mode) {
+          this.hideAllAnimals();
+          if (this.models[mode]) this.models[mode].setAttribute('visible', 'true');
+        },
+
         // === GLTF 材质操作工具 ===
         setGltfMaterial: function(el, opts) {
             if (!el || !el.object3D) return;
@@ -470,10 +502,9 @@
         },
 
         updatePlacementDebug: function(cameraPos, time) {
-            if (!this.placementDebugEnabled || !this.placementDebugEl || time - this.lastDebugUpdate < 250) return;
+            if (!this.placementDebugEnabled || !this.placementDebugBodyEl || !this.placementDebugExpanded || time - this.lastDebugUpdate < 250) return;
             this.lastDebugUpdate = time;
-            this.placementDebugEl.style.display = 'block';
-            this.placementDebugEl.innerText =
+            this.placementDebugBodyEl.innerText =
                 `placed: ${this.isSpawned}\n` +
                 `reticle: ${this.formatVec(this.reticlePosition)}\n` +
                 `camera: ${this.formatVec(cameraPos)}\n` +
@@ -571,7 +602,10 @@
       <div id="octopus-screen-filter"></div>
 
       <div id="distance-ui">Initializing AR...</div>
-      <div id="placement-debug"></div>
+      <div id="placement-debug">
+        <button id="placement-debug-toggle">DEBUG</button>
+        <div id="placement-debug-body"></div>
+      </div>
       <div id="instruction-text"></div>
 
       <div id="mode-selector">
@@ -613,10 +647,10 @@
            <a-gltf-model id="pufferfish-model" src="#asset-pufferfish" position="0 0.35 0" scale="0.002 0.002 0.002"></a-gltf-model>
          </a-entity>
          <a-entity id="octopus" position="0 0 0">
-           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.35 0.35 0.35"></a-gltf-model>
+           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.22 0.22 0.22"></a-gltf-model>
          </a-entity>
          <a-entity id="hedgehog" position="0 0 0">
-           <a-gltf-model id="hedgehog-model" src="#asset-hedgehog" scale="0.25 0.25 0.25"></a-gltf-model>
+           <a-gltf-model id="hedgehog-model" src="#asset-hedgehog" scale="0.4 0.4 0.4"></a-gltf-model>
          </a-entity>
       </a-entity>
 
