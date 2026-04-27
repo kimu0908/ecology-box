@@ -33,6 +33,14 @@
         text-shadow: 0 1px 3px rgba(0,0,0,0.8);
       }
 
+      #placement-debug {
+        position: absolute; top: 20px; right: 20px; z-index: 1001;
+        background: rgba(0, 0, 0, 0.55); color: #00ff88;
+        font-family: monospace; font-size: 11px; line-height: 1.35;
+        padding: 8px 10px; border-radius: 8px; pointer-events: none;
+        white-space: pre; display: none;
+      }
+
       #instruction-text {
         position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 1001;
         background: rgba(0, 0, 0, 0.5); color: white;
@@ -104,6 +112,10 @@
           this.modeSelector = document.getElementById('mode-selector');
           this.instructionEl = document.getElementById('instruction-text');
           this.octopusFilterEl = document.getElementById('octopus-screen-filter');
+          this.placementDebugEl = document.getElementById('placement-debug');
+          this.placementDebugEnabled = true;
+          this.lastDebugUpdate = 0;
+          this.reticlePosition = null;
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -149,6 +161,10 @@
           this.el.addEventListener('monster-spawned', (e) => {
              this.isSpawned = true;
              this.spawnPosition = new THREE.Vector3().copy(e.detail.position);
+             this.reticlePosition = e.detail.reticlePosition ? new THREE.Vector3().copy(e.detail.reticlePosition) : new THREE.Vector3().copy(e.detail.position);
+             Object.keys(this.models).forEach(key => {
+                 this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
+             });
              // \u7edd\u4e0d\u4f9d\u8d56\u5916\u90e8\u51fd\u6570\uff0c\u843d\u5730\u77ac\u95f4\u76f4\u63a5\u5224\u65ad\u5f53\u524d\u6a21\u5f0f\u5e76\u5199\u5165\u53f0\u8bcd\uff01
              if (this.instructionEl) {
                  if (this.mode === 'pufferfish') {
@@ -310,6 +326,7 @@
 
           var currentCamPos = new THREE.Vector3();
           cameraEl.object3D.getWorldPosition(currentCamPos);
+          this.updatePlacementDebug(currentCamPos, time);
 
           var dt = timeDelta / 1000;
           if (this.octopusCooldown > 0) this.octopusCooldown -= dt;
@@ -438,6 +455,31 @@
                     self.hedgehogOriginalMaterials.push(child.material.clone());
                 }
             });
+        },
+
+        formatVec: function(vec) {
+            if (!vec) return 'n/a';
+            return `${vec.x.toFixed(2)}, ${vec.y.toFixed(2)}, ${vec.z.toFixed(2)}`;
+        },
+
+        getWorldVec: function(el) {
+            if (!el || !el.object3D) return null;
+            var pos = new THREE.Vector3();
+            el.object3D.getWorldPosition(pos);
+            return pos;
+        },
+
+        updatePlacementDebug: function(cameraPos, time) {
+            if (!this.placementDebugEnabled || !this.placementDebugEl || time - this.lastDebugUpdate < 250) return;
+            this.lastDebugUpdate = time;
+            this.placementDebugEl.style.display = 'block';
+            this.placementDebugEl.innerText =
+                `placed: ${this.isSpawned}\n` +
+                `reticle: ${this.formatVec(this.reticlePosition)}\n` +
+                `camera: ${this.formatVec(cameraPos)}\n` +
+                `puffer: ${this.formatVec(this.getWorldVec(this.models.pufferfish))}\n` +
+                `octopus: ${this.formatVec(this.getWorldVec(this.models.octopus))}\n` +
+                `hedgehog: ${this.formatVec(this.getWorldVec(this.models.hedgehog))}`;
         }
       });
 
@@ -471,11 +513,12 @@
               if (this.hasPlaced) return; // [修复一] 已放置则拦截重复触发
               var anchorEl = this.data.target;
               if (anchorEl) {
-                var reticlePos = this.el.object3D.position;
+                var reticlePos = new THREE.Vector3();
+                this.el.object3D.getWorldPosition(reticlePos);
                 var finalSpawnPos = new THREE.Vector3(reticlePos.x, reticlePos.y + 0.15, reticlePos.z);
-                anchorEl.setAttribute('position', { x: finalSpawnPos.x, y: finalSpawnPos.y, z: finalSpawnPos.z });
+                anchorEl.setAttribute('position', { x: 0, y: 0, z: 0 });
                 anchorEl.setAttribute('visible', 'true');
-                this.el.sceneEl.emit('monster-spawned', { position: finalSpawnPos });
+                this.el.sceneEl.emit('monster-spawned', { position: finalSpawnPos, reticlePosition: reticlePos });
                 // [修复一] 放置后锁定并隐藏光圈
                 this.hasPlaced = true;
                 this.el.setAttribute('visible', 'false');
@@ -528,6 +571,7 @@
       <div id="octopus-screen-filter"></div>
 
       <div id="distance-ui">Initializing AR...</div>
+      <div id="placement-debug"></div>
       <div id="instruction-text"></div>
 
       <div id="mode-selector">
