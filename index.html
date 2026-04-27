@@ -308,8 +308,6 @@
           var anchorEl = this.data.anchor;
           if (!cameraEl || !cameraEl.object3D || !anchorEl || !anchorEl.object3D) return;
 
-          anchorEl.object3D.position.copy(this.spawnPosition);
-
           var currentCamPos = new THREE.Vector3();
           cameraEl.object3D.getWorldPosition(currentCamPos);
 
