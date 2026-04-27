@@ -82,6 +82,16 @@
         pointer-events: none; 
       }
 
+      #reset-placement {
+        position: absolute; top: 82px; left: 20px; z-index: 1001;
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.45); color: white;
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        border-radius: 8px; padding: 8px 12px;
+        font-family: sans-serif; font-size: 13px; font-weight: 600;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      }
+
       .mode-btn {
         pointer-events: auto;
         background: rgba(255, 255, 255, 0.2);
@@ -103,7 +113,9 @@
       }
     </style>
 
-    <script>
+      <script>
+      const HEDGEHOG_YAW = 180;
+
       AFRAME.registerComponent('ar-game-manager', {
         schema: {
           anchor: { type: 'selector' }
@@ -156,10 +168,11 @@
             pufferfishPressed: new THREE.Vector3(0.0022, 0.0007, 0.0022),
             octopusNormal: new THREE.Vector3(0.18, 0.18, 0.18)
           };
-          this.hedgehogYaw = 180;
-          if (this.visuals.hedgehog) this.visuals.hedgehog.setAttribute('rotation', `0 ${this.hedgehogYaw} 0`);
+          this.HEDGEHOG_YAW = HEDGEHOG_YAW;
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
+          document.getElementById('reset-placement').addEventListener('beforexrselect', e => e.preventDefault());
+          document.getElementById('reset-placement').addEventListener('click', () => this.resetPlacement());
           if (this.placementDebugToggleEl) {
              this.placementDebugToggleEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.placementDebugToggleEl.addEventListener('click', () => {
@@ -254,6 +267,7 @@
 
           // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
           if (this.visuals.hedgehog) this.visuals.hedgehog.addEventListener('model-loaded', function() {
+              self.applyHedgehogYaw();
               self.saveHedgehogMaterial();
           });
         },
@@ -307,7 +321,11 @@
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
 
-          this.showAnimal(newMode);
+          if (this.isSpawned) {
+             this.showAnimal(newMode);
+          } else {
+             this.hideAllAnimals();
+          }
 
           if (this.visuals.octopus) {
              this.visuals.octopus.object3D.position.set(0, 0, 0); 
@@ -458,6 +476,32 @@
           if (this.models[mode]) this.models[mode].setAttribute('visible', 'true');
         },
 
+        resetPlacement: function() {
+            this.isSpawned = false;
+            this.spawnPosition = null;
+            this.reticlePosition = null;
+            this.correctedAnchorPosition = null;
+            this.previousDistance = null;
+            this.isOctopusAttached = false;
+            this.octopusCooldown = 0;
+            this.hedgehogState = 'idle';
+            if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
+            this.hedgehogTimer = null;
+            this.hideOctopusFilter();
+            this.hideAllAnimals();
+            if (this.visuals.pufferfish) this.visuals.pufferfish.object3D.scale.copy(this.visualScales.pufferfishNormal);
+            if (this.visuals.octopus) {
+                this.visuals.octopus.object3D.position.set(0, 0, 0);
+                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
+            }
+            this.restoreHedgehogMaterial();
+            if (this.instructionEl) {
+                this.instructionEl.innerText = '请重新扫描地面，出现绿圈后点击放置！';
+                this.instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
+            }
+            this.el.sceneEl.emit('placement-reset');
+        },
+
         showOctopusFilter: function() {
             if (!this.octopusFilterEl) return;
             this.octopusFilterEl.classList.add('active');
@@ -466,6 +510,11 @@
         hideOctopusFilter: function() {
             if (!this.octopusFilterEl) return;
             this.octopusFilterEl.classList.remove('active');
+        },
+
+        applyHedgehogYaw: function() {
+            if (!this.visuals.hedgehog || !this.visuals.hedgehog.object3D) return;
+            this.visuals.hedgehog.object3D.rotation.y = THREE.MathUtils.degToRad(this.HEDGEHOG_YAW);
         },
 
         // === GLTF 材质操作工具 ===
@@ -583,6 +632,11 @@
               }
             });
           });
+
+          this.el.sceneEl.addEventListener('placement-reset', () => {
+            this.hasPlaced = false;
+            this.el.setAttribute('visible', 'true');
+          });
         },
         tick: function () {
           if (this.hasPlaced) return; // [修复一] 已放置，停止光圈更新
@@ -629,6 +683,7 @@
       <div id="octopus-screen-filter"></div>
 
       <div id="distance-ui">Initializing AR...</div>
+      <button id="reset-placement">重新放置</button>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
         <div id="placement-debug-body"></div>
