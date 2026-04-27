@@ -118,9 +118,9 @@
           };
 
           this.visualScales = {
-            pufferfishNormal: new THREE.Vector3(0.005, 0.005, 0.005),
-            pufferfishPressed: new THREE.Vector3(0.006, 0.0015, 0.006),
-            octopusNormal: new THREE.Vector3(0.005, 0.005, 0.005)
+            pufferfishNormal: new THREE.Vector3(0.002, 0.002, 0.002),
+            pufferfishPressed: new THREE.Vector3(0.0024, 0.0006, 0.0024),
+            octopusNormal: new THREE.Vector3(0.35, 0.35, 0.35)
           };
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
@@ -189,9 +189,19 @@
               });
           }
 
-          cleanupModel(this.visuals.pufferfish);
-          cleanupModel(this.visuals.octopus);
           cleanupModel(this.visuals.hedgehog);
+
+          if (this.visuals.pufferfish) this.visuals.pufferfish.addEventListener('model-loaded', function() {
+              var box = new THREE.Box3().setFromObject(self.visuals.pufferfish.object3D);
+              var center = new THREE.Vector3();
+              var size = new THREE.Vector3();
+              box.getCenter(center);
+              box.getSize(size);
+              console.log('Pufferfish model loaded', {
+                  center: { x: center.x, y: center.y, z: center.z },
+                  size: { x: size.x, y: size.y, z: size.z }
+              });
+          });
 
           // 刺猬模型加载完成后，保存其原始材质以便故障后恢复
           if (this.visuals.hedgehog) this.visuals.hedgehog.addEventListener('model-loaded', function() {
@@ -558,10 +568,10 @@
       <!-- 共享锚点基站：使用 GLTF 3D 模型 -->
       <a-entity id="monster-anchor" visible="false">
          <a-entity id="pufferfish" position="0 0 0">
-           <a-gltf-model id="pufferfish-model" src="#asset-pufferfish" scale="0.005 0.005 0.005"></a-gltf-model>
+           <a-gltf-model id="pufferfish-model" src="#asset-pufferfish" position="0 0.35 0" scale="0.002 0.002 0.002"></a-gltf-model>
          </a-entity>
          <a-entity id="octopus" position="0 0 0">
-           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.005 0.005 0.005"></a-gltf-model>
+           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.35 0.35 0.35"></a-gltf-model>
          </a-entity>
          <a-entity id="hedgehog" position="0 0 0">
            <a-gltf-model id="hedgehog-model" src="#asset-hedgehog" scale="0.25 0.25 0.25"></a-gltf-model>
