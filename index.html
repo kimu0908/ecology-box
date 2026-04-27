@@ -108,6 +108,7 @@
           this.mode = 'pufferfish';
           this.isSpawned = false;
           this.spawnPosition = null; 
+          this.groundYOffset = -0.08;
           this.prevCameraPos = new THREE.Vector3();
           
           this.isOctopusAttached = false;
@@ -132,6 +133,7 @@
           this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
           this.reticlePosition = null;
+          this.correctedAnchorPosition = null;
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -185,6 +187,7 @@
              this.isSpawned = true;
              this.spawnPosition = new THREE.Vector3().copy(e.detail.position);
              this.reticlePosition = e.detail.reticlePosition ? new THREE.Vector3().copy(e.detail.reticlePosition) : new THREE.Vector3().copy(e.detail.position);
+             this.correctedAnchorPosition = new THREE.Vector3().copy(this.spawnPosition);
              Object.keys(this.models).forEach(key => {
                  this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
              });
@@ -507,6 +510,7 @@
             this.placementDebugBodyEl.innerText =
                 `placed: ${this.isSpawned}\n` +
                 `reticle: ${this.formatVec(this.reticlePosition)}\n` +
+                `anchor: ${this.formatVec(this.correctedAnchorPosition)}\n` +
                 `camera: ${this.formatVec(cameraPos)}\n` +
                 `puffer: ${this.formatVec(this.getWorldVec(this.models.pufferfish))}\n` +
                 `octopus: ${this.formatVec(this.getWorldVec(this.models.octopus))}\n` +
@@ -522,6 +526,7 @@
           this.xrHitTestSource = null;
           this.viewerSpace = null;
           this.refSpace = null;
+          this.groundYOffset = -0.08;
           this.hasPlaced = false; // [修复一] 放置锁，防止幽灵光圈持续跟随
 
           this.el.sceneEl.addEventListener('enter-vr', () => {
@@ -546,10 +551,11 @@
               if (anchorEl) {
                 var reticlePos = new THREE.Vector3();
                 this.el.object3D.getWorldPosition(reticlePos);
-                var finalSpawnPos = new THREE.Vector3(reticlePos.x, reticlePos.y + 0.15, reticlePos.z);
+                var correctedAnchorPosition = new THREE.Vector3().copy(reticlePos);
+                correctedAnchorPosition.y += this.groundYOffset;
                 anchorEl.setAttribute('position', { x: 0, y: 0, z: 0 });
                 anchorEl.setAttribute('visible', 'true');
-                this.el.sceneEl.emit('monster-spawned', { position: finalSpawnPos, reticlePosition: reticlePos });
+                this.el.sceneEl.emit('monster-spawned', { position: correctedAnchorPosition, reticlePosition: reticlePos });
                 // [修复一] 放置后锁定并隐藏光圈
                 this.hasPlaced = true;
                 this.el.setAttribute('visible', 'false');
