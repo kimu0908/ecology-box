@@ -150,6 +150,8 @@
           this.lastDebugUpdate = 0;
           this.reticlePosition = null;
           this.correctedAnchorPosition = null;
+          this.currentHint = '';
+          this.pufferfishHintState = 'safe';
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -211,16 +213,11 @@
                  this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
              });
              this.showAnimal(this.mode);
-             // \u7edd\u4e0d\u4f9d\u8d56\u5916\u90e8\u51fd\u6570\uff0c\u843d\u5730\u77ac\u95f4\u76f4\u63a5\u5224\u65ad\u5f53\u524d\u6a21\u5f0f\u5e76\u5199\u5165\u53f0\u8bcd\uff01
-             if (this.instructionEl) {
-                 if (this.mode === 'pufferfish') {
-                     this.instructionEl.innerText = '\u6162\u6162\u9760\u8fd1\u6211\uff0c\u770b\u770b\u6211\u4f1a\u600e\u6837\uff1f';
-                 } else if (this.mode === 'octopus') {
-                     this.instructionEl.innerText = '\u5c0f\u5fc3\uff01\u9760\u5f97\u592a\u8fd1\u6211\u53ef\u662f\u4f1a\u7c98\u4eba\u7684\uff01';
-                 } else if (this.mode === 'hedgehog') {
-                     this.instructionEl.innerText = '\u5618...\u6162\u6162\u6765\uff0c\u4e0d\u8981\u8dd1\u5f97\u592a\u5feb\u54e6\u3002';
-                 }
-             }
+             this.updateHint('慢慢靠近，看看它喜欢多大的空间。');
+          });
+
+          this.el.addEventListener('hint-message', (e) => {
+             if (e.detail && e.detail.message) this.updateHint(e.detail.message);
           });
 
           this.switchMode(this.mode);
@@ -306,7 +303,7 @@
            }
            
            if(this.mode === 'octopus') {
-              this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
+              this.updateHint('黏液消失了，距离刚刚好。');
            }
         },
 
@@ -347,13 +344,11 @@
           var currentName = modeNames[newMode];
 
           if (!this.isSpawned) {
-              if (this.instructionEl) {
-                  this.instructionEl.innerText = '已选择【' + currentName + '模式】\n请缓慢扫描地面，出现绿圈后点击放置！';
-              }
+              this.updateHint('找一块平坦的地面，把小动物放下来。');
           } else {
-              if (newMode === 'pufferfish') this.instructionEl.innerText = '慢慢靠近我，看看我会怎样？';
-              if (newMode === 'octopus') this.instructionEl.innerText = '小心！靠得太近我可是会粘人的！';
-              if (newMode === 'hedgehog') this.instructionEl.innerText = '嘘...慢慢来，不要跑得太快哦。';
+              if (newMode === 'pufferfish') this.updateHint('距离刚刚好，河豚很放松。');
+              if (newMode === 'octopus') this.updateHint('章鱼在安静地看着你。');
+              if (newMode === 'hedgehog') this.updateHint('刺猬喜欢你慢慢靠近。');
           }
         },
 
@@ -361,9 +356,7 @@
           if (!this.isSpawned || !this.spawnPosition) {
              if (this.uiEl) this.uiEl.innerText = 'Scan & TAP Space';
              // [修改点 3] 仅在文字为空时才设定初始引导语，不每帧强制覆盖
-             if (this.instructionEl && !this.instructionEl.innerText) {
-                 this.instructionEl.innerText = '请缓慢扫描地面，出现绿圈后点击放置！';
-             }
+             if (this.instructionEl && !this.instructionEl.innerText) this.updateHint('找一块平坦的地面，把小动物放下来。');
              return;
           }
 
@@ -403,8 +396,16 @@
             case 'pufferfish':
               if (surfaceDistance < 0.6) {
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
+                 if (this.pufferfishHintState !== 'close') {
+                    this.pufferfishHintState = 'close';
+                    this.updateHint('你靠得太近啦，河豚被挤到了。');
+                 }
               } else {
                  pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
+                 if (this.pufferfishHintState === 'close') {
+                    this.pufferfishHintState = 'safe';
+                    this.updateHint('退后一点，河豚又舒服了。');
+                 }
               }
               break;
 
@@ -414,9 +415,7 @@
                      this.isOctopusAttached = true;
                      this.models.octopus.setAttribute('visible', 'false');
                      this.showOctopusFilter();
-                     if (this.instructionEl.innerText !== '哎呀！快用力晃晃手机把我甩掉！') {
-                         this.instructionEl.innerText = '哎呀！快用力晃晃手机把我甩掉！';
-                     }
+                     this.updateHint('甩一甩手机，把黏液甩掉。');
                  } else {
                      oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                      oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
@@ -438,25 +437,21 @@
                   
                   this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
-                  if (this.instructionEl.innerText !== '警报！你吓到我了，退后！') {
-                      this.instructionEl.innerText = '警报！你吓到我了，退后！';
-                  }
+                  this.updateHint('你冲得太快了，刺猬紧张了。');
               } 
               else if (surfaceDistance >= 0.8) {
                   // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
                   if (this.hedgehogState === 'alarm') {
                       this.hedgehogState = 'waiting';
                       
-                      if (this.instructionEl.innerText !== '嘘...保持这个距离，安静等 3 秒钟...') {
-                          this.instructionEl.innerText = '嘘...保持这个距离，安静等 3 秒钟...';
-                      }
+                      this.updateHint('退后一点，安静等一等。');
                       
                       this.hedgehogTimer = setTimeout(() => {
                           // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
-                              this.instructionEl.innerText = '谢谢你的耐心，现在我们是朋友了。';
+                              this.updateHint('刺猬放松了。');
                           }
                       }, 3000); // 3 秒耐心考验
                   }
@@ -476,12 +471,19 @@
           if (this.models[mode]) this.models[mode].setAttribute('visible', 'true');
         },
 
+        updateHint: function(message) {
+            if (!this.instructionEl || this.currentHint === message) return;
+            this.currentHint = message;
+            this.instructionEl.innerText = message;
+        },
+
         resetPlacement: function() {
             this.isSpawned = false;
             this.spawnPosition = null;
             this.reticlePosition = null;
             this.correctedAnchorPosition = null;
             this.previousDistance = null;
+            this.pufferfishHintState = 'safe';
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.hedgehogState = 'idle';
@@ -495,10 +497,8 @@
                 this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
             }
             this.restoreHedgehogMaterial();
-            if (this.instructionEl) {
-                this.instructionEl.innerText = '请重新扫描地面，出现绿圈后点击放置！';
-                this.instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
-            }
+            if (this.instructionEl) this.instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
+            this.updateHint('换个地方，再把小动物放下来。');
             this.el.sceneEl.emit('placement-reset');
         },
 
@@ -598,6 +598,7 @@
           this.refSpace = null;
           this.groundYOffset = -0.08;
           this.hasPlaced = false; // [修复一] 放置锁，防止幽灵光圈持续跟随
+          this.lastHintMessage = '';
 
           this.el.sceneEl.addEventListener('enter-vr', () => {
             if (!this.el.sceneEl.is('ar-mode')) return;
@@ -635,8 +636,14 @@
 
           this.el.sceneEl.addEventListener('placement-reset', () => {
             this.hasPlaced = false;
+            this.lastHintMessage = '';
             this.el.setAttribute('visible', 'true');
           });
+        },
+        emitHint: function(message) {
+          if (this.lastHintMessage === message) return;
+          this.lastHintMessage = message;
+          this.el.sceneEl.emit('hint-message', { message: message });
         },
         tick: function () {
           if (this.hasPlaced) return; // [修复一] 已放置，停止光圈更新
@@ -658,17 +665,11 @@
               this.el.setAttribute('visible', 'true');
               this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
               // [\u65b0\u589e] \u6293\u5230\u5730\u9762\u65f6\uff0c\u7ed9\u4e88\u5f3a\u70c8\u7684\u7eff\u8272\u89c6\u89c9\u786e\u8ba4
-              if (!this.hasPlaced && instructionEl && instructionEl.innerText !== '\u2705 \u627e\u5230\u5730\u9762\uff01\u8bf7\u70b9\u51fb\u5c4f\u5e55\u653e\u7f6e') {
-                instructionEl.innerText = '\u2705 \u627e\u5230\u5730\u9762\uff01\u8bf7\u70b9\u51fb\u5c4f\u5e55\u653e\u7f6e';
-                instructionEl.style.background = 'rgba(50, 205, 50, 0.8)';
-              }
+              if (!this.hasPlaced) this.emitHint('找到了地面，点一下把小动物放下来。');
             } else {
               this.el.setAttribute('visible', 'false');
               // [\u65b0\u589e] \u4e22\u5931\u5e73\u9762\u65f6\u5f15\u5bfc\u7528\u6237\u79fb\u52a8\u624b\u673a\u5bfb\u627e\u7279\u5f81\u70b9
-              if (!this.hasPlaced && instructionEl && instructionEl.innerText !== '\ud83d\udd0d \u5bfb\u627e\u7279\u5f81\u70b9\u4e2d...\u8bf7\u626b\u89c6\u6709\u7eb9\u7406\u7684\u5730\u9762') {
-                instructionEl.innerText = '\ud83d\udd0d \u5bfb\u627e\u7279\u5f81\u70b9\u4e2d...\u8bf7\u626b\u89c6\u6709\u7eb9\u7406\u7684\u5730\u9762';
-                instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
-              }
+              if (!this.hasPlaced) this.emitHint('找一块平坦的地面，把小动物放下来。');
             }
           }
         }
