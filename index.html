@@ -13,10 +13,14 @@
 
       #octopus-screen-filter {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
-        pointer-events: none; display: none;
+        pointer-events: none; display: block; opacity: 0;
+        transition: opacity 420ms ease;
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         background: rgba(50, 205, 50, 0.6);
         animation: pulse-filter 2s infinite alternate;
+      }
+      #octopus-screen-filter.active {
+        opacity: 1;
       }
       @keyframes pulse-filter {
         0% { background: rgba(50, 205, 50, 0.5); }
@@ -149,9 +153,11 @@
 
           this.visualScales = {
             pufferfishNormal: new THREE.Vector3(0.002, 0.002, 0.002),
-            pufferfishPressed: new THREE.Vector3(0.0024, 0.0006, 0.0024),
-            octopusNormal: new THREE.Vector3(0.22, 0.22, 0.22)
+            pufferfishPressed: new THREE.Vector3(0.0022, 0.0007, 0.0022),
+            octopusNormal: new THREE.Vector3(0.18, 0.18, 0.18)
           };
+          this.hedgehogYaw = 180;
+          if (this.visuals.hedgehog) this.visuals.hedgehog.setAttribute('rotation', `0 ${this.hedgehogYaw} 0`);
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
           if (this.placementDebugToggleEl) {
@@ -275,7 +281,7 @@
            this.isOctopusAttached = false;
            this.octopusCooldown = 3; 
 
-           if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'none';
+           this.hideOctopusFilter();
 
            if (this.models.octopus) {
                this.models.octopus.setAttribute('visible', 'true');
@@ -296,7 +302,7 @@
           }
 
           this.mode = newMode;
-          if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'none';
+          this.hideOctopusFilter();
 
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
@@ -389,7 +395,7 @@
                  if (surfaceDistance < 0.5 && this.octopusCooldown <= 0) {
                      this.isOctopusAttached = true;
                      this.models.octopus.setAttribute('visible', 'false');
-                     if (this.octopusFilterEl) this.octopusFilterEl.style.display = 'block';
+                     this.showOctopusFilter();
                      if (this.instructionEl.innerText !== '哎呀！快用力晃晃手机把我甩掉！') {
                          this.instructionEl.innerText = '哎呀！快用力晃晃手机把我甩掉！';
                      }
@@ -412,7 +418,7 @@
                       this.hedgehogTimer = null;
                   }
                   
-                  this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF0000', wireframe: true });
+                  this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
                   if (this.instructionEl.innerText !== '警报！你吓到我了，退后！') {
                       this.instructionEl.innerText = '警报！你吓到我了，退后！';
@@ -452,12 +458,27 @@
           if (this.models[mode]) this.models[mode].setAttribute('visible', 'true');
         },
 
+        showOctopusFilter: function() {
+            if (!this.octopusFilterEl) return;
+            this.octopusFilterEl.classList.add('active');
+        },
+
+        hideOctopusFilter: function() {
+            if (!this.octopusFilterEl) return;
+            this.octopusFilterEl.classList.remove('active');
+        },
+
         // === GLTF 材质操作工具 ===
         setGltfMaterial: function(el, opts) {
             if (!el || !el.object3D) return;
             el.object3D.traverse(function(child) {
                 if (child.isMesh && child.material) {
                     if (opts.color) child.material.color.set(opts.color);
+                    if (opts.emissive && child.material.emissive) child.material.emissive.set(opts.emissive);
+                    if (opts.opacity !== undefined) {
+                        child.material.transparent = opts.opacity < 1;
+                        child.material.opacity = opts.opacity;
+                    }
                     if (opts.wireframe !== undefined) child.material.wireframe = opts.wireframe;
                 }
             });
@@ -653,7 +674,7 @@
            <a-gltf-model id="pufferfish-model" src="#asset-pufferfish" position="0 0.35 0" scale="0.002 0.002 0.002"></a-gltf-model>
          </a-entity>
          <a-entity id="octopus" position="0 0 0">
-           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.22 0.22 0.22"></a-gltf-model>
+           <a-gltf-model id="octopus-model" src="#asset-octopus" scale="0.18 0.18 0.18"></a-gltf-model>
          </a-entity>
          <a-entity id="hedgehog" position="0 0 0">
            <a-gltf-model id="hedgehog-model" src="#asset-hedgehog" scale="0.4 0.4 0.4"></a-gltf-model>
