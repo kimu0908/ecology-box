@@ -97,59 +97,79 @@
       #start-experience::after {
         content: " →"; font-weight: 800;
       }
+      .welcome-entry-note {
+        min-height: 24px;
+        margin-top: 12px;
+        color: #5f8179;
+        font-size: 14px;
+        font-weight: 700;
+      }
       .welcome-terrarium {
         position: relative;
         min-height: clamp(360px, 56vh, 650px);
         border-radius: 36px;
         border: 2px solid rgba(255,255,255,0.72);
-        background: rgba(255,255,255,0.48);
+        background:
+          linear-gradient(180deg, rgba(214, 241, 246, 0.72), rgba(255, 244, 216, 0.68)),
+          radial-gradient(circle at 50% 78%, rgba(124, 211, 161, 0.3), transparent 34%);
         box-shadow: inset 0 0 44px rgba(255,255,255,0.84), 0 22px 54px rgba(60, 105, 96, 0.18);
         overflow: hidden;
       }
-      .welcome-visual,
-      .welcome-visual img {
-        position: absolute; inset: 0;
-        width: 100%; height: 100%;
-      }
-      .welcome-visual img {
-        object-fit: cover;
-        object-position: center;
-        filter: saturate(1.04) contrast(0.98);
-      }
-      .welcome-visual::after {
-        content: "";
-        position: absolute; inset: 0;
-        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(245,255,247,0.28));
-        pointer-events: none;
-      }
       .welcome-terrarium::before {
         content: "";
-        position: absolute; inset: 0;
+        position: absolute; inset: 7% 7% 13%;
         border-radius: 32px;
         border: 1px solid rgba(255,255,255,0.7);
-        box-shadow: inset 0 0 36px rgba(255,255,255,0.72);
-        pointer-events: none;
+        background:
+          radial-gradient(circle at 24% 76%, #dff2d7 0 7%, transparent 8%),
+          radial-gradient(circle at 70% 78%, #cbe8e8 0 8%, transparent 9%),
+          linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0.08));
+        box-shadow: inset 0 0 36px rgba(255,255,255,0.72), 0 0 0 999px rgba(255,255,255,0.05);
+      }
+      .welcome-visual-placeholder {
+        position: absolute; inset: 8% 7% 14%;
+        border-radius: 32px;
       }
       .welcome-orbit {
         position: absolute; border-radius: 50%;
-        border: 2px dashed rgba(255,255,255,0.88);
+        border: 2px dashed rgba(255,255,255,0.9);
         box-shadow: 0 0 18px rgba(117, 225, 205, 0.5);
       }
-      .welcome-orbit.one { width: 38%; aspect-ratio: 1; left: 13%; top: 45%; background: rgba(116, 210, 238, 0.22); }
-      .welcome-orbit.two { width: 34%; aspect-ratio: 1; right: 12%; top: 42%; background: rgba(255, 172, 144, 0.2); }
-      .welcome-orbit.three { width: 32%; aspect-ratio: 1; left: 35%; bottom: 9%; background: rgba(136, 218, 160, 0.22); }
-      .welcome-creature {
-        position: absolute; display: grid; place-items: center;
-        border-radius: 50%; background: rgba(255,255,255,0.78);
-        border: 1px solid rgba(255,255,255,0.92);
+      .welcome-orbit.one { width: 38%; aspect-ratio: 1; left: 10%; top: 42%; background: rgba(116, 210, 238, 0.22); }
+      .welcome-orbit.two { width: 34%; aspect-ratio: 1; right: 10%; top: 39%; background: rgba(255, 172, 144, 0.2); }
+      .welcome-orbit.three { width: 32%; aspect-ratio: 1; left: 34%; bottom: 8%; background: rgba(136, 218, 160, 0.22); }
+      .welcome-animal {
+        position: absolute;
+        display: grid; place-items: center;
+        width: clamp(78px, 16vw, 150px);
+        aspect-ratio: 1;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.78);
+        border: 1px solid rgba(255,255,255,0.94);
         box-shadow: 0 15px 34px rgba(91, 118, 110, 0.2);
-        color: #3f796f;
-        font-size: clamp(16px, 2vw, 24px);
-        font-weight: 900;
       }
-      .welcome-creature.fish { width: 22%; aspect-ratio: 1; left: 19%; top: 49%; }
-      .welcome-creature.octo { width: 22%; aspect-ratio: 1; right: 18%; top: 47%; }
-      .welcome-creature.hedge { width: 20%; aspect-ratio: 1; left: 42%; bottom: 15%; }
+      .welcome-animal img {
+        width: 74%;
+        height: 74%;
+        object-fit: contain;
+      }
+      .welcome-animal.puffer { left: 17%; top: 46%; }
+      .welcome-animal.octopus { right: 15%; top: 44%; }
+      .welcome-animal.hedgehog { left: 39%; bottom: 12%; }
+      .welcome-tag {
+        position: absolute;
+        padding: 8px 12px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.7);
+        border: 1px solid rgba(255,255,255,0.84);
+        color: #447167;
+        font-weight: 850;
+        font-size: clamp(12px, 1.5vw, 18px);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      }
+      .welcome-tag.space { left: 12%; top: 24%; color: #2672a2; }
+      .welcome-tag.repair { right: 12%; top: 25%; color: #c46f4c; }
+      .welcome-tag.slow { right: 12%; bottom: 22%; color: #4e7a55; }
       .welcome-note {
         position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
         width: min(78%, 460px);
@@ -285,6 +305,14 @@
       #btn-octopus span { color: #6b55a0; }
       #btn-hedgehog span { color: #4f7a55; }
 
+      .a-enter-vr,
+      .a-enter-ar {
+        opacity: 0.32;
+        transform: scale(0.82);
+        transform-origin: right bottom;
+        filter: saturate(0.75);
+      }
+
       @media (orientation: landscape) and (min-width: 760px) {
         #instruction-text {
           bottom: 124px;
@@ -319,6 +347,8 @@
           min-height: min(48vh, 430px);
           order: -1;
         }
+        .welcome-animal { width: clamp(72px, 22vw, 110px); }
+        .welcome-tag { display: none; }
         #distance-ui {
           top: 16px; left: 14px;
           max-width: 38vw;
@@ -391,6 +421,7 @@
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
           this.welcomeOverlayEl = document.getElementById('welcome-overlay');
           this.startExperienceEl = document.getElementById('start-experience');
+          this.welcomeEntryNoteEl = document.querySelector('.welcome-entry-note');
           this.placementDebugEnabled = true;
           this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
@@ -441,9 +472,14 @@
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.startExperienceEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.startExperienceEl.addEventListener('click', () => {
-                this.welcomeOverlayEl.classList.add('hidden');
+                this.startExperienceEl.disabled = true;
+                if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+                this.tryStartARFromWelcome();
              });
           }
+          this.el.sceneEl.addEventListener('enter-vr', () => {
+             if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
+          });
 
           document.getElementById('btn-octopus').addEventListener('click', () => {
              if (!this.motionListening) {
@@ -561,6 +597,37 @@
                  }
              }
              this.lastAcc = { x: acc.x, y: acc.y, z: acc.z };
+        },
+
+        tryStartARFromWelcome: function() {
+           var scene = this.el.sceneEl || this.el;
+           var finish = () => {
+              if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
+              if (this.startExperienceEl) this.startExperienceEl.disabled = false;
+           };
+           var fallback = () => {
+              if (this.startExperienceEl) this.startExperienceEl.disabled = false;
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '请点击 AR 按钮进入体验。';
+              this.updateHint('请点击 AR 按钮进入体验。');
+           };
+
+           try {
+              var enterAR = scene.enterAR || scene.enterVR;
+              if (!enterAR) {
+                 fallback();
+                 return;
+              }
+              var result = enterAR.call(scene);
+              Promise.resolve(result).then(() => {
+                 setTimeout(() => {
+                    if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) finish();
+                    else fallback();
+                 }, 300);
+              }).catch(fallback);
+           } catch (error) {
+              console.warn('AR entry failed:', error);
+              fallback();
+           }
         },
 
         releaseOctopus: function() {
@@ -1135,18 +1202,26 @@
           <div class="welcome-copy">
             <div class="welcome-brand">
               <span class="welcome-mark" aria-hidden="true"></span>
-              <span>邊界生態箱<br>The Boundary Terrarium</span>
+              <span>给小朋友的 AR 距离练习<br>A gentle AR space-learning toy for children</span>
             </div>
             <h1>邊界生態箱</h1>
             <h2>The Boundary Terrarium</h2>
-            <p>探索小动物喜欢的距离，学习慢慢靠近与尊重空间。</p>
+            <p>探索小动物喜欢的距离，<br>学习慢慢靠近与尊重空间。</p>
             <button id="start-experience" type="button">开始体验</button>
+            <div class="welcome-entry-note" aria-live="polite"></div>
           </div>
           <div class="welcome-terrarium" aria-hidden="true">
-            <picture class="welcome-visual">
-              <source media="(orientation: landscape)" srcset="ui_refs/ui_ref_ipad_start.png">
-              <img src="ui_refs/ui_ref_mobile_start.png" alt="">
-            </picture>
+            <div class="welcome-visual-placeholder">
+              <span class="welcome-orbit one"></span>
+              <span class="welcome-orbit two"></span>
+              <span class="welcome-orbit three"></span>
+              <span class="welcome-animal puffer"><img src="icon-puffer.png" alt=""></span>
+              <span class="welcome-animal octopus"><img src="icon-octopus.png" alt=""></span>
+              <span class="welcome-animal hedgehog"><img src="icon-hedgehog.png" alt=""></span>
+              <span class="welcome-tag space">需要多一点空间</span>
+              <span class="welcome-tag repair">退远再修复</span>
+              <span class="welcome-tag slow">慢慢靠近</span>
+            </div>
             <span class="welcome-note">观察 · 理解 · 尊重</span>
           </div>
         </section>
