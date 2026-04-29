@@ -127,3 +127,10 @@ git push origin main
   - 移除或默认关闭 debug 面板。
   - 整理提示语文案。
   - 只在确认稳定后再做视觉 polish。
+
+## 8. 最新工程备注
+
+- 章鱼已新增最小主状态机：`safe -> triggered -> stuck -> needsSpace -> cooldown -> safe`。
+- 章鱼身体状态以 `octopusState` 为准，不再用 `octopusHintState` 或固定 `octopusCooldown` 控制触发。
+- `isOctopusAttached` 只保留为兼容显示 / DeviceMotion 判断：`triggered` 和 `stuck` 为 true，其余状态为 false。
+- 章鱼滤镜、章鱼 root 显隐、提示语现在都由 `enterOctopusSafe / Triggered / Stuck / NeedsSpace / Cooldown` 统一设置，避免视觉、提示、cooldown 不同步。

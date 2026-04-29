@@ -155,6 +155,7 @@
           this.pufferfishHintState = 'safe';
           this.pufferfishHintTimer = null;
           this.pufferfishSafeTimer = null;
+          this.octopusState = 'safe';
           this.octopusHintState = 'safe';
           this.octopusHintTimer = null;
           this.octopusSafeTimer = null;
@@ -298,36 +299,18 @@
         },
 
         releaseOctopus: function() {
-           this.isOctopusAttached = false;
-           this.octopusCooldown = 0.2; 
-           if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
-           this.octopusHintTimer = null;
-           if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
-           this.octopusSafeTimer = null;
-
-           this.hideOctopusFilter();
-
-           if (this.models.octopus) {
-               this.models.octopus.setAttribute('visible', 'true');
-           }
-           if (this.visuals.octopus) {
-               this.visuals.octopus.object3D.position.set(0, 0, 0); 
-               this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
-           }
-            
-           if(this.mode === 'octopus') {
-              this.setOctopusHintState('needsSpace');
-           }
+           if (this.octopusState !== 'triggered' && this.octopusState !== 'stuck') return;
+           this.enterOctopusNeedsSpace();
         },
 
         switchMode: function (newMode) {
-          if (this.mode === 'octopus' && this.isOctopusAttached) {
-             this.releaseOctopus();
-          }
-
           this.mode = newMode;
-          this.hideOctopusFilter();
           this.clearHintTimers(true);
+          this.hideOctopusFilter();
+          this.octopusState = 'safe';
+          this.octopusHintState = 'safe';
+          this.isOctopusAttached = false;
+          this.octopusCooldown = 0;
 
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
@@ -435,22 +418,15 @@
               break;
 
             case 'octopus':
-              if (!this.isOctopusAttached) {
-                 if (surfaceDistance < 0.5 && this.octopusCooldown <= 0 && this.octopusHintState !== 'needsSpace') {
-                     this.isOctopusAttached = true;
-                     if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
-                     this.octopusSafeTimer = null;
-                     this.models.octopus.setAttribute('visible', 'false');
-                     this.showOctopusFilter();
-                     this.setOctopusHintState('triggered');
-                 } else {
-                     oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
-                     oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
-                     if (surfaceDistance >= 0.5 && this.octopusHintState === 'needsSpace') {
-                        this.octopusCooldown = 0;
-                        this.setOctopusHintState('safeAfterRetreat');
-                     }
-                 }
+              if (this.octopusState !== 'triggered' && this.octopusState !== 'stuck') {
+                 oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                 oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
+              }
+
+              if (this.octopusState === 'safe' && surfaceDistance < 0.5) {
+                 this.enterOctopusTriggered();
+              } else if (this.octopusState === 'needsSpace' && surfaceDistance >= 0.5) {
+                 this.enterOctopusCooldown();
               }
               break;
 
@@ -538,7 +514,10 @@
             this.hedgehogHintTimer = null;
             this.hedgehogSafeTimer = null;
             this.hintLockedUntil = 0;
-            if (resetOctopusState) this.octopusHintState = 'safe';
+            if (resetOctopusState) {
+                this.octopusState = 'safe';
+                this.octopusHintState = 'safe';
+            }
         },
 
         getSafeHint: function(mode) {
@@ -561,9 +540,6 @@
             }
             if (state === 'triggered') {
                 this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。', { minDuration: 1800, priority: 'important' });
-                this.octopusHintTimer = setTimeout(() => {
-                    if (this.mode === 'octopus' && this.isOctopusAttached) this.setOctopusHintState('stuckPrompt');
-                }, 1800);
                 return;
             }
             if (state === 'stuckPrompt') {
@@ -577,10 +553,79 @@
             }
             if (state === 'safeAfterRetreat') {
                 this.updateHint('距离刚刚好，章鱼放松了。');
-                this.octopusSafeTimer = setTimeout(() => {
-                    if (this.mode === 'octopus' && !this.isOctopusAttached && this.octopusHintState === 'safeAfterRetreat') this.setOctopusHintState('safe');
-                }, 1400);
             }
+        },
+
+        enterOctopusSafe: function() {
+            this.clearHintTimers(true);
+            this.octopusState = 'safe';
+            this.isOctopusAttached = false;
+            this.octopusCooldown = 0;
+            this.octopusHintState = 'safe';
+            this.hideOctopusFilter();
+            if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
+                this.models.octopus.setAttribute('visible', 'true');
+            }
+            if (this.visuals.octopus) {
+                this.visuals.octopus.object3D.position.set(0, 0, 0);
+                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
+            }
+            if (this.mode === 'octopus') this.setOctopusHintState('safe');
+        },
+
+        enterOctopusTriggered: function() {
+            this.clearHintTimers(false);
+            this.octopusState = 'triggered';
+            this.isOctopusAttached = true;
+            if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
+            this.showOctopusFilter();
+            this.setOctopusHintState('triggered');
+            this.octopusHintTimer = setTimeout(() => {
+                if (this.mode === 'octopus' && this.octopusState === 'triggered') this.enterOctopusStuck();
+            }, 1800);
+        },
+
+        enterOctopusStuck: function() {
+            this.clearHintTimers(false);
+            this.octopusState = 'stuck';
+            this.isOctopusAttached = true;
+            if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
+            this.setOctopusHintState('stuckPrompt');
+        },
+
+        enterOctopusNeedsSpace: function() {
+            this.clearHintTimers(false);
+            this.octopusState = 'needsSpace';
+            this.isOctopusAttached = false;
+            this.octopusCooldown = 0;
+            this.hideOctopusFilter();
+            if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
+                this.models.octopus.setAttribute('visible', 'true');
+            }
+            if (this.visuals.octopus) {
+                this.visuals.octopus.object3D.position.set(0, 0, 0);
+                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
+            }
+            if (this.mode === 'octopus') this.setOctopusHintState('needsSpace');
+        },
+
+        enterOctopusCooldown: function() {
+            this.clearHintTimers(false);
+            this.octopusState = 'cooldown';
+            this.isOctopusAttached = false;
+            this.octopusCooldown = 0;
+            this.hideOctopusFilter();
+            if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
+                this.models.octopus.setAttribute('visible', 'true');
+            }
+            if (this.visuals.octopus) {
+                this.visuals.octopus.object3D.position.set(0, 0, 0);
+                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
+            }
+            if (this.mode === 'octopus') this.setOctopusHintState('safeAfterRetreat');
+            this.octopusSafeTimer = setTimeout(() => {
+                if (this.mode === 'octopus' && this.octopusState === 'cooldown') this.enterOctopusSafe();
+            }, 1400);
         },
 
         resetPlacement: function() {
@@ -590,6 +635,7 @@
             this.correctedAnchorPosition = null;
             this.previousDistance = null;
             this.pufferfishHintState = 'safe';
+            this.octopusState = 'safe';
             this.octopusHintState = 'safe';
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
