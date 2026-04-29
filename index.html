@@ -140,6 +140,7 @@
           this.previousDistance = null;
           this.hedgehogState = 'idle'; // 状态: idle, alarm, waiting, friend
           this.hedgehogTimer = null;
+          this.hedgehogSlowApproachPraised = false;
           this.hedgehogOriginalMaterials = []; // 保存原始材质以便恢复
 
           this.uiEl = document.getElementById('distance-ui');
@@ -348,6 +349,7 @@
           // [初始化与重置] 切入或切出刺猬模式时，恢复冷淡怠速状态
           if (this.models.hedgehog) {
              this.hedgehogState = 'idle';
+             if (newMode === 'hedgehog') this.hedgehogSlowApproachPraised = false;
              if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
              this.hedgehogTimer = null;
              this.restoreHedgehogMaterial();
@@ -461,6 +463,7 @@
               if (surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
+                  this.hedgehogSlowApproachPraised = false;
                   
                   if (this.hedgehogTimer) {
                       clearTimeout(this.hedgehogTimer);
@@ -475,6 +478,16 @@
                      if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('退后一点，安静等一等。');
                   }, 1800);
               } 
+              else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
+                  this.hedgehogSlowApproachPraised = true;
+                  this.updateHint('很好，你慢慢靠近，刺猬没有害怕。');
+              }
+              else if (this.hedgehogState === 'friend') {
+                  this.hedgehogSlowApproachPraised = false;
+              }
+              else if (surfaceDistance >= 0.8 && this.hedgehogState === 'idle') {
+                  this.hedgehogSlowApproachPraised = false;
+              }
               else if (surfaceDistance >= 0.8) {
                   // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
                   if (this.hedgehogState === 'alarm') {
@@ -658,6 +671,7 @@
             this.octopusCooldown = 0;
             this.clearHintTimers(true);
             this.hedgehogState = 'idle';
+            this.hedgehogSlowApproachPraised = false;
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
             this.hideOctopusFilter();
