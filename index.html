@@ -153,9 +153,13 @@
           this.currentHint = '';
           this.hintLockedUntil = 0;
           this.pufferfishHintState = 'safe';
+          this.pufferfishHintTimer = null;
+          this.pufferfishSafeTimer = null;
           this.octopusHintState = 'safe';
           this.octopusHintTimer = null;
           this.octopusSafeTimer = null;
+          this.hedgehogHintTimer = null;
+          this.hedgehogSafeTimer = null;
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -323,6 +327,7 @@
 
           this.mode = newMode;
           this.hideOctopusFilter();
+          this.clearHintTimers();
 
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
@@ -405,13 +410,26 @@
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
-                    this.updateHint('你靠得太近啦，河豚被挤到了。');
+                    this.updateHint('你靠得太近啦，河豚被挤到了。', { minDuration: 1800, priority: 'important' });
+                    if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
+                    this.pufferfishHintTimer = setTimeout(() => {
+                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退后一点，给河豚多一点空间。');
+                    }, 1800);
                  }
               } else {
                  pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
                  if (this.pufferfishHintState === 'close') {
-                    this.pufferfishHintState = 'safe';
-                    this.updateHint('退后一点，河豚又舒服了。');
+                    this.pufferfishHintState = 'recovering';
+                    if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
+                    this.pufferfishHintTimer = null;
+                    this.updateHint('河豚又鼓回来了，距离舒服多了。');
+                    if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
+                    this.pufferfishSafeTimer = setTimeout(() => {
+                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'recovering') {
+                          this.pufferfishHintState = 'safe';
+                          this.updateHint(this.getSafeHint('pufferfish'));
+                       }
+                    }, 1400);
                  }
               }
               break;
@@ -463,21 +481,31 @@
                   
                   this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
-                  this.updateHint('你冲得太快了，刺猬紧张了。');
+                  this.updateHint('你冲得太快了，刺猬紧张了。', { minDuration: 1800, priority: 'important' });
+                  if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
+                  this.hedgehogHintTimer = setTimeout(() => {
+                     if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('退后一点，安静等一等。');
+                  }, 1800);
               } 
               else if (surfaceDistance >= 0.8) {
                   // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
                   if (this.hedgehogState === 'alarm') {
                       this.hedgehogState = 'waiting';
+                      if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
+                      this.hedgehogHintTimer = null;
                       
-                      this.updateHint('退后一点，安静等一等。');
+                      this.updateHint('很好，保持这个距离一会儿。');
                       
                       this.hedgehogTimer = setTimeout(() => {
                           // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
-                              this.updateHint('刺猬放松了。');
+                              this.updateHint('刺猬放松了，你慢下来它就安心了。');
+                              if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
+                              this.hedgehogSafeTimer = setTimeout(() => {
+                                 if (this.mode === 'hedgehog' && this.hedgehogState === 'friend') this.updateHint(this.getSafeHint('hedgehog'));
+                              }, 1600);
                           }
                       }, 3000); // 3 秒耐心考验
                   }
@@ -507,6 +535,22 @@
             if (opts.minDuration) this.hintLockedUntil = now + opts.minDuration;
         },
 
+        clearHintTimers: function() {
+            if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
+            if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
+            if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
+            if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
+            if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
+            if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
+            this.pufferfishHintTimer = null;
+            this.pufferfishSafeTimer = null;
+            this.octopusHintTimer = null;
+            this.octopusSafeTimer = null;
+            this.hedgehogHintTimer = null;
+            this.hedgehogSafeTimer = null;
+            this.hintLockedUntil = 0;
+        },
+
         getSafeHint: function(mode) {
             if (mode === 'pufferfish') return '距离刚刚好，河豚很放松。';
             if (mode === 'octopus') return '章鱼在安静地看着你。';
@@ -524,11 +568,7 @@
             this.octopusHintState = 'safe';
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
-            if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
-            this.octopusHintTimer = null;
-            if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
-            this.octopusSafeTimer = null;
-            this.hintLockedUntil = 0;
+            this.clearHintTimers();
             this.hedgehogState = 'idle';
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
