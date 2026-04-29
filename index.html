@@ -131,6 +131,10 @@
           this.octopusCooldown = 0;
           this.lastAcc = null;
           this.motionListening = false;
+          this.lastShakeDelta = 0;
+          this.lastMotionTime = 0;
+          this.motionPermissionState = 'unknown';
+          this.motionReleaseCount = 0;
           
           // [刺猬猫专有属性]
           this.previousDistance = null;
@@ -195,16 +199,24 @@
 
           document.getElementById('btn-octopus').addEventListener('click', () => {
              if (!this.motionListening) {
-                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                if (typeof DeviceMotionEvent === 'undefined') {
+                    this.motionPermissionState = 'unsupported';
+                } else if (typeof DeviceMotionEvent.requestPermission === 'function') {
                     DeviceMotionEvent.requestPermission().then(permissionState => {
+                        this.motionPermissionState = permissionState;
                         if (permissionState === 'granted') {
                             window.addEventListener('devicemotion', this.handleMotion.bind(this));
                             this.motionListening = true;
+                            this.motionPermissionState = 'listening';
                         }
-                    }).catch(console.error);
+                    }).catch(error => {
+                        this.motionPermissionState = 'denied';
+                        console.error(error);
+                    });
                 } else {
                     window.addEventListener('devicemotion', this.handleMotion.bind(this));
                     this.motionListening = true;
+                    this.motionPermissionState = 'listening';
                 }
              }
              this.switchMode('octopus');
@@ -280,6 +292,7 @@
         },
 
         handleMotion: function(event) {
+             this.lastMotionTime = performance.now();
              if (this.mode !== 'octopus' || !this.isOctopusAttached) return;
              
              var acc = event.accelerationIncludingGravity || event.acceleration;
@@ -290,8 +303,10 @@
                  var dy = Math.abs(acc.y - this.lastAcc.y);
                  var dz = Math.abs(acc.z - this.lastAcc.z);
                  var deltaSum = dx + dy + dz;
+                 this.lastShakeDelta = deltaSum;
                  
                  if (deltaSum > 25) {
+                     this.motionReleaseCount++;
                      this.releaseOctopus();
                  }
              }
@@ -381,6 +396,9 @@
           if (this.uiEl) {
             this.uiEl.innerText = `[${this.mode.toUpperCase()}]\nDIST: ${surfaceDistance.toFixed(2)}m`;
             if (this.isOctopusAttached) this.uiEl.innerText = `[${this.mode.toUpperCase()}]\nDIST: STUCK!`;
+            if (this.mode === 'octopus') {
+               this.uiEl.innerText += `\nOCTO STATE: ${this.octopusState}\nMOTION: ${this.motionPermissionState}\nSHAKE: ${this.lastShakeDelta.toFixed(1)}\nRELEASES: ${this.motionReleaseCount}`;
+            }
           }
 
           if (!this.visuals.pufferfish || !this.visuals.octopus) return;
@@ -418,6 +436,9 @@
               break;
 
             case 'octopus':
+              if (this.isOctopusAttached && (this.lastMotionTime === 0 || performance.now() - this.lastMotionTime > 2000)) {
+                 this.updateHint('没有检测到晃动权限，请点章鱼按钮重新授权。');
+              }
               if (this.octopusState !== 'triggered' && this.octopusState !== 'stuck') {
                  oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                  oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
@@ -751,7 +772,11 @@
                 `camera: ${this.formatVec(cameraPos)}\n` +
                 `puffer: ${this.formatVec(this.getWorldVec(this.models.pufferfish))}\n` +
                 `octopus: ${this.formatVec(this.getWorldVec(this.models.octopus))}\n` +
-                `hedgehog: ${this.formatVec(this.getWorldVec(this.models.hedgehog))}`;
+                `hedgehog: ${this.formatVec(this.getWorldVec(this.models.hedgehog))}\n` +
+                `octo state: ${this.octopusState}\n` +
+                `motion: ${this.motionPermissionState}\n` +
+                `shake: ${this.lastShakeDelta.toFixed(1)}\n` +
+                `releases: ${this.motionReleaseCount}`;
         }
       });
 
