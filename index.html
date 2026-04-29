@@ -299,7 +299,7 @@
 
         releaseOctopus: function() {
            this.isOctopusAttached = false;
-           this.octopusCooldown = 3; 
+           this.octopusCooldown = 0.2; 
            if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
            this.octopusHintTimer = null;
            if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
@@ -437,7 +437,7 @@
 
             case 'octopus':
               if (!this.isOctopusAttached) {
-                 if (surfaceDistance < 0.5 && this.octopusCooldown <= 0) {
+                 if (surfaceDistance < 0.5 && this.octopusCooldown <= 0 && this.octopusHintState !== 'needsSpace') {
                      this.isOctopusAttached = true;
                      if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
                      this.octopusSafeTimer = null;
@@ -456,6 +456,7 @@
                      oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                      oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
                      if (surfaceDistance >= 0.5 && this.octopusHintState === 'needsSpace') {
+                        this.octopusCooldown = 0;
                         this.octopusHintState = 'safeAfterRetreat';
                         this.updateHint('距离刚刚好，章鱼放松了。');
                         if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
