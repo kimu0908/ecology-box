@@ -460,6 +460,10 @@
             case 'hedgehog':
               // 刺猬模式：延迟满足的戒备交互机制
               // [修改点 2] 只惩罚快速『靠近』行为，approachVelocity > 0 才代表在接近
+              if (surfaceDistance >= 0.8) {
+                  this.hedgehogSlowApproachPraised = false;
+              }
+
               if (surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
@@ -480,13 +484,7 @@
               } 
               else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
-                  this.updateHint('很好，你慢慢靠近，刺猬没有害怕。');
-              }
-              else if (this.hedgehogState === 'friend') {
-                  this.hedgehogSlowApproachPraised = false;
-              }
-              else if (surfaceDistance >= 0.8 && this.hedgehogState === 'idle') {
-                  this.hedgehogSlowApproachPraised = false;
+                  this.updateHint('你慢慢靠近了，刺猬觉得很安心。');
               }
               else if (surfaceDistance >= 0.8) {
                   // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
@@ -505,7 +503,11 @@
                               this.updateHint('刺猬放松了，你慢下来它就安心了。');
                               if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
                               this.hedgehogSafeTimer = setTimeout(() => {
-                                 if (this.mode === 'hedgehog' && this.hedgehogState === 'friend') this.updateHint(this.getSafeHint('hedgehog'));
+                                 if (this.mode === 'hedgehog' && this.hedgehogState === 'friend') {
+                                    this.hedgehogState = 'idle';
+                                    this.hedgehogSlowApproachPraised = false;
+                                    this.updateHint(this.getSafeHint('hedgehog'));
+                                 }
                               }, 1600);
                           }
                       }, 3000); // 3 秒耐心考验
