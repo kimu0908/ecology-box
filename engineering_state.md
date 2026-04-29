@@ -26,6 +26,7 @@
   - 已修复三段式提示闭环：原因提示约 1.8 秒后，若仍未恢复，会自动切换到行动指令；恢复后显示反馈，再回到 safe 文案。
   - 已修复章鱼二次触发 overlay 残留：每次触发前清理旧 hide timer，先 `display: block`，下一帧再淡入；释放时淡出后再 `display: none`。
   - 已修复章鱼二次触发延迟：release 后只保留极短防抖，用户退回安全距离后立即清零 cooldown；未退后时由 `needsSpace` 提示状态阻止立刻重黏。
+  - 已将章鱼提示语收敛到 `setOctopusHintState(state)` 专用状态函数，避免 hint lock、滤镜状态和 attached 状态互相打架。
 
 ## 3. 三个动物当前状态
 
@@ -118,6 +119,7 @@ git push origin main
   - 章鱼第二次靠近时，应重新按“太近 -> 甩一甩 -> 退后 -> safe”的顺序显示。
   - 连续多次触发章鱼时，黏液 overlay 应每次都干净淡入 / 淡出，不闪烁不卡顿。
   - 章鱼完整流程后不按重新放置再次靠近时，进入 `0.5m` 应立即触发，不应被旧 cooldown 延迟。
+  - 章鱼提示语应严格跟随 `safe -> triggered -> stuckPrompt -> needsSpace -> safeAfterRetreat -> safe`。
   - 河豚与刺猬触发后，儿童站着不动时，应继续看到“退后 / 等待”等行动指令。
   - 是否不挡重新放置按钮、动物切换按钮和 DEBUG 按钮。
 - 若刺猬头部仍未面向用户，只改 `HEDGEHOG_YAW`，不要旋转 root。

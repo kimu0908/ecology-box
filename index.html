@@ -314,10 +314,9 @@
                this.visuals.octopus.object3D.position.set(0, 0, 0); 
                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
            }
-           
+            
            if(this.mode === 'octopus') {
-              this.octopusHintState = 'needsSpace';
-              this.updateHint('黏液甩掉了，现在退后一点，给章鱼空间。');
+              this.setOctopusHintState('needsSpace');
            }
         },
 
@@ -328,7 +327,7 @@
 
           this.mode = newMode;
           this.hideOctopusFilter();
-          this.clearHintTimers();
+          this.clearHintTimers(true);
 
           document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
           document.getElementById(`btn-${newMode}`).classList.add('active');
@@ -441,31 +440,15 @@
                      this.isOctopusAttached = true;
                      if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
                      this.octopusSafeTimer = null;
-                     this.octopusHintState = 'stuck';
                      this.models.octopus.setAttribute('visible', 'false');
                      this.showOctopusFilter();
-                     this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。', { minDuration: 1800, priority: 'important' });
-                     if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
-                     this.octopusHintTimer = setTimeout(() => {
-                        if (this.mode === 'octopus' && this.isOctopusAttached) {
-                           this.octopusHintState = 'stuckActive';
-                           this.updateHint('甩一甩手机，把黏液甩掉。');
-                        }
-                     }, 1800);
+                     this.setOctopusHintState('triggered');
                  } else {
                      oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                      oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
                      if (surfaceDistance >= 0.5 && this.octopusHintState === 'needsSpace') {
                         this.octopusCooldown = 0;
-                        this.octopusHintState = 'safeAfterRetreat';
-                        this.updateHint('距离刚刚好，章鱼放松了。');
-                        if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
-                        this.octopusSafeTimer = setTimeout(() => {
-                           if (this.mode === 'octopus' && !this.isOctopusAttached && this.octopusHintState === 'safeAfterRetreat') {
-                              this.octopusHintState = 'safe';
-                              this.updateHint(this.getSafeHint('octopus'));
-                           }
-                        }, 1400);
+                        this.setOctopusHintState('safeAfterRetreat');
                      }
                  }
               }
@@ -539,7 +522,7 @@
             if (opts.minDuration) this.hintLockedUntil = now + opts.minDuration;
         },
 
-        clearHintTimers: function() {
+        clearHintTimers: function(resetOctopusState) {
             if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
             if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
             if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
@@ -555,6 +538,7 @@
             this.hedgehogHintTimer = null;
             this.hedgehogSafeTimer = null;
             this.hintLockedUntil = 0;
+            if (resetOctopusState) this.octopusHintState = 'safe';
         },
 
         getSafeHint: function(mode) {
@@ -562,6 +546,41 @@
             if (mode === 'octopus') return '章鱼在安静地看着你。';
             if (mode === 'hedgehog') return '刺猬喜欢你慢慢靠近。';
             return '慢慢靠近，看看它喜欢多大的空间。';
+        },
+
+        setOctopusHintState: function(state) {
+            if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
+            this.octopusHintTimer = null;
+            if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
+            this.octopusSafeTimer = null;
+            this.octopusHintState = state;
+
+            if (state === 'safe') {
+                this.updateHint(this.getSafeHint('octopus'));
+                return;
+            }
+            if (state === 'triggered') {
+                this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。', { minDuration: 1800, priority: 'important' });
+                this.octopusHintTimer = setTimeout(() => {
+                    if (this.mode === 'octopus' && this.isOctopusAttached) this.setOctopusHintState('stuckPrompt');
+                }, 1800);
+                return;
+            }
+            if (state === 'stuckPrompt') {
+                this.updateHint('甩一甩手机，把黏液甩掉。');
+                return;
+            }
+            if (state === 'needsSpace') {
+                this.hintLockedUntil = 0;
+                this.updateHint('黏液甩掉了，现在退后一点，给章鱼空间。', { priority: 'important' });
+                return;
+            }
+            if (state === 'safeAfterRetreat') {
+                this.updateHint('距离刚刚好，章鱼放松了。');
+                this.octopusSafeTimer = setTimeout(() => {
+                    if (this.mode === 'octopus' && !this.isOctopusAttached && this.octopusHintState === 'safeAfterRetreat') this.setOctopusHintState('safe');
+                }, 1400);
+            }
         },
 
         resetPlacement: function() {
@@ -574,7 +593,7 @@
             this.octopusHintState = 'safe';
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
-            this.clearHintTimers();
+            this.clearHintTimers(true);
             this.hedgehogState = 'idle';
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
