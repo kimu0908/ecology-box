@@ -152,6 +152,8 @@
           this.correctedAnchorPosition = null;
           this.currentHint = '';
           this.pufferfishHintState = 'safe';
+          this.octopusHintState = 'safe';
+          this.octopusHintTimer = null;
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -213,7 +215,7 @@
                  this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
              });
              this.showAnimal(this.mode);
-             this.updateHint('慢慢靠近，看看它喜欢多大的空间。');
+             this.updateHint(this.getSafeHint(this.mode));
           });
 
           this.el.addEventListener('hint-message', (e) => {
@@ -291,6 +293,8 @@
         releaseOctopus: function() {
            this.isOctopusAttached = false;
            this.octopusCooldown = 3; 
+           if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
+           this.octopusHintTimer = null;
 
            this.hideOctopusFilter();
 
@@ -303,7 +307,8 @@
            }
            
            if(this.mode === 'octopus') {
-              this.updateHint('黏液消失了，距离刚刚好。');
+              this.octopusHintState = 'needsSpace';
+              this.updateHint('黏液甩掉了，现在退后一点，给章鱼空间。');
            }
         },
 
@@ -346,9 +351,7 @@
           if (!this.isSpawned) {
               this.updateHint('找一块平坦的地面，把小动物放下来。');
           } else {
-              if (newMode === 'pufferfish') this.updateHint('距离刚刚好，河豚很放松。');
-              if (newMode === 'octopus') this.updateHint('章鱼在安静地看着你。');
-              if (newMode === 'hedgehog') this.updateHint('刺猬喜欢你慢慢靠近。');
+              this.updateHint(this.getSafeHint(newMode));
           }
         },
 
@@ -413,12 +416,21 @@
               if (!this.isOctopusAttached) {
                  if (surfaceDistance < 0.5 && this.octopusCooldown <= 0) {
                      this.isOctopusAttached = true;
+                     this.octopusHintState = 'stuck';
                      this.models.octopus.setAttribute('visible', 'false');
                      this.showOctopusFilter();
-                     this.updateHint('甩一甩手机，把黏液甩掉。');
+                     this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。');
+                     if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
+                     this.octopusHintTimer = setTimeout(() => {
+                        if (this.mode === 'octopus' && this.isOctopusAttached) this.updateHint('甩一甩手机，把黏液甩掉。');
+                     }, 900);
                  } else {
                      oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                      oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
+                     if (surfaceDistance >= 0.5 && this.octopusHintState === 'needsSpace') {
+                        this.octopusHintState = 'safeAfterRetreat';
+                        this.updateHint('距离刚刚好，章鱼放松了。');
+                     }
                  }
               }
               break;
@@ -477,6 +489,13 @@
             this.instructionEl.innerText = message;
         },
 
+        getSafeHint: function(mode) {
+            if (mode === 'pufferfish') return '距离刚刚好，河豚很放松。';
+            if (mode === 'octopus') return '章鱼在安静地看着你。';
+            if (mode === 'hedgehog') return '刺猬喜欢你慢慢靠近。';
+            return '慢慢靠近，看看它喜欢多大的空间。';
+        },
+
         resetPlacement: function() {
             this.isSpawned = false;
             this.spawnPosition = null;
@@ -484,8 +503,11 @@
             this.correctedAnchorPosition = null;
             this.previousDistance = null;
             this.pufferfishHintState = 'safe';
+            this.octopusHintState = 'safe';
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
+            if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
+            this.octopusHintTimer = null;
             this.hedgehogState = 'idle';
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
