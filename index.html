@@ -13,7 +13,7 @@
 
       #octopus-screen-filter {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000;
-        pointer-events: none; display: block; opacity: 0;
+        pointer-events: none; display: none; opacity: 0;
         transition: opacity 420ms ease;
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         background: rgba(50, 205, 50, 0.6);
@@ -158,6 +158,7 @@
           this.octopusHintState = 'safe';
           this.octopusHintTimer = null;
           this.octopusSafeTimer = null;
+          this.octopusOverlayHideTimer = null;
           this.hedgehogHintTimer = null;
           this.hedgehogSafeTimer = null;
 
@@ -438,6 +439,8 @@
               if (!this.isOctopusAttached) {
                  if (surfaceDistance < 0.5 && this.octopusCooldown <= 0) {
                      this.isOctopusAttached = true;
+                     if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
+                     this.octopusSafeTimer = null;
                      this.octopusHintState = 'stuck';
                      this.models.octopus.setAttribute('visible', 'false');
                      this.showOctopusFilter();
@@ -540,12 +543,14 @@
             if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
             if (this.octopusHintTimer) clearTimeout(this.octopusHintTimer);
             if (this.octopusSafeTimer) clearTimeout(this.octopusSafeTimer);
+            if (this.octopusOverlayHideTimer) clearTimeout(this.octopusOverlayHideTimer);
             if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
             if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
             this.pufferfishHintTimer = null;
             this.pufferfishSafeTimer = null;
             this.octopusHintTimer = null;
             this.octopusSafeTimer = null;
+            this.octopusOverlayHideTimer = null;
             this.hedgehogHintTimer = null;
             this.hedgehogSafeTimer = null;
             this.hintLockedUntil = 0;
@@ -587,12 +592,25 @@
 
         showOctopusFilter: function() {
             if (!this.octopusFilterEl) return;
-            this.octopusFilterEl.classList.add('active');
+            if (this.octopusOverlayHideTimer) clearTimeout(this.octopusOverlayHideTimer);
+            this.octopusOverlayHideTimer = null;
+            this.octopusFilterEl.classList.remove('active');
+            this.octopusFilterEl.style.display = 'block';
+            requestAnimationFrame(() => {
+                if (this.octopusFilterEl) this.octopusFilterEl.classList.add('active');
+            });
         },
 
         hideOctopusFilter: function() {
             if (!this.octopusFilterEl) return;
+            if (this.octopusOverlayHideTimer) clearTimeout(this.octopusOverlayHideTimer);
             this.octopusFilterEl.classList.remove('active');
+            this.octopusOverlayHideTimer = setTimeout(() => {
+                if (this.octopusFilterEl && !this.octopusFilterEl.classList.contains('active')) {
+                    this.octopusFilterEl.style.display = 'none';
+                }
+                this.octopusOverlayHideTimer = null;
+            }, 460);
         },
 
         applyHedgehogYaw: function() {
