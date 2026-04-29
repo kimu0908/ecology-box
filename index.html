@@ -305,17 +305,19 @@
                  var deltaSum = dx + dy + dz;
                  this.lastShakeDelta = deltaSum;
                  
-                 if (deltaSum > 25) {
+                if (deltaSum > 25 && this.octopusState === 'readyToShake') {
                      this.motionReleaseCount++;
                      this.releaseOctopus();
+                 } else if (deltaSum > 25 && this.octopusState === 'stuckTooClose') {
+                     this.setOctopusHintState('stuckTooClose');
                  }
              }
              this.lastAcc = { x: acc.x, y: acc.y, z: acc.z };
         },
 
         releaseOctopus: function() {
-           if (this.octopusState !== 'triggered' && this.octopusState !== 'stuck') return;
-           this.enterOctopusNeedsSpace();
+           if (this.octopusState !== 'readyToShake') return;
+           this.enterOctopusCooldown();
         },
 
         switchMode: function (newMode) {
@@ -439,15 +441,17 @@
               if (this.isOctopusAttached && (this.lastMotionTime === 0 || performance.now() - this.lastMotionTime > 2000)) {
                  this.updateHint('没有检测到晃动权限，请点章鱼按钮重新授权。');
               }
-              if (this.octopusState !== 'triggered' && this.octopusState !== 'stuck') {
+              if (this.octopusState !== 'triggered' && this.octopusState !== 'stuckTooClose' && this.octopusState !== 'readyToShake') {
                  oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
                  oMesh.scale.lerp(this.visualScales.octopusNormal, 0.1);
               }
 
               if (this.octopusState === 'safe' && surfaceDistance < 0.5) {
                  this.enterOctopusTriggered();
-              } else if (this.octopusState === 'needsSpace' && surfaceDistance >= 0.5) {
-                 this.enterOctopusCooldown();
+              } else if (this.octopusState === 'stuckTooClose' && surfaceDistance >= 0.8) {
+                 this.enterOctopusReadyToShake();
+              } else if (this.octopusState === 'readyToShake' && surfaceDistance < 0.8) {
+                 this.enterOctopusStuckTooClose();
               }
               break;
 
@@ -563,17 +567,17 @@
                 this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。', { minDuration: 1800, priority: 'important' });
                 return;
             }
-            if (state === 'stuckPrompt') {
-                this.updateHint('甩一甩手机，把黏液甩掉。');
-                return;
-            }
-            if (state === 'needsSpace') {
+            if (state === 'stuckTooClose') {
                 this.hintLockedUntil = 0;
-                this.updateHint('黏液甩掉了，现在退后一点，给章鱼空间。', { priority: 'important' });
+                this.updateHint('太近了，黏液还甩不掉。退远一点再试试。', { priority: 'important' });
                 return;
             }
-            if (state === 'safeAfterRetreat') {
-                this.updateHint('距离刚刚好，章鱼放松了。');
+            if (state === 'readyToShake') {
+                this.updateHint('很好，现在甩一甩手机，把黏液甩掉。');
+                return;
+            }
+            if (state === 'cooldown') {
+                this.updateHint('黏液甩掉了，章鱼放松了。');
             }
         },
 
@@ -602,32 +606,24 @@
             this.showOctopusFilter();
             this.setOctopusHintState('triggered');
             this.octopusHintTimer = setTimeout(() => {
-                if (this.mode === 'octopus' && this.octopusState === 'triggered') this.enterOctopusStuck();
+                if (this.mode === 'octopus' && this.octopusState === 'triggered') this.enterOctopusStuckTooClose();
             }, 1800);
         },
 
-        enterOctopusStuck: function() {
+        enterOctopusStuckTooClose: function() {
             this.clearHintTimers(false);
-            this.octopusState = 'stuck';
+            this.octopusState = 'stuckTooClose';
             this.isOctopusAttached = true;
             if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
-            this.setOctopusHintState('stuckPrompt');
+            this.setOctopusHintState('stuckTooClose');
         },
 
-        enterOctopusNeedsSpace: function() {
+        enterOctopusReadyToShake: function() {
             this.clearHintTimers(false);
-            this.octopusState = 'needsSpace';
-            this.isOctopusAttached = false;
-            this.octopusCooldown = 0;
-            this.hideOctopusFilter();
-            if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
-                this.models.octopus.setAttribute('visible', 'true');
-            }
-            if (this.visuals.octopus) {
-                this.visuals.octopus.object3D.position.set(0, 0, 0);
-                this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
-            }
-            if (this.mode === 'octopus') this.setOctopusHintState('needsSpace');
+            this.octopusState = 'readyToShake';
+            this.isOctopusAttached = true;
+            if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
+            if (this.mode === 'octopus') this.setOctopusHintState('readyToShake');
         },
 
         enterOctopusCooldown: function() {
@@ -643,7 +639,7 @@
                 this.visuals.octopus.object3D.position.set(0, 0, 0);
                 this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
             }
-            if (this.mode === 'octopus') this.setOctopusHintState('safeAfterRetreat');
+            if (this.mode === 'octopus') this.setOctopusHintState('cooldown');
             this.octopusSafeTimer = setTimeout(() => {
                 if (this.mode === 'octopus' && this.octopusState === 'cooldown') this.enterOctopusSafe();
             }, 1400);
