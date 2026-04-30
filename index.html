@@ -306,6 +306,19 @@
       }
       #reset-placement::before { content: "↻ "; font-size: 1.1em; }
 
+      #return-home {
+        position: absolute; top: 22px; left: 22px; z-index: 1001;
+        pointer-events: auto;
+        min-height: 48px;
+        background: rgba(255, 253, 246, 0.7); color: #4f806a;
+        border: 1px solid rgba(255, 255, 255, 0.86);
+        border-radius: 999px; padding: 10px 18px;
+        font-size: clamp(15px, 2vw, 24px); font-weight: 850;
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        box-shadow: 0 12px 28px rgba(52, 84, 77, 0.15), inset 0 1px 0 rgba(255,255,255,0.9);
+      }
+      #return-home::before { content: "⌂ "; font-size: 1.1em; }
+
       .mode-btn {
         pointer-events: auto;
         position: relative;
@@ -415,6 +428,11 @@
           min-height: 42px;
           padding: 8px 13px;
         }
+        #return-home {
+          top: 16px; left: 14px;
+          min-height: 42px;
+          padding: 8px 13px;
+        }
         #instruction-text {
           bottom: 144px;
           width: calc(100vw - 40px);
@@ -476,6 +494,7 @@
           this.welcomeOverlayEl = document.getElementById('welcome-overlay');
           this.startExperienceEl = document.getElementById('start-experience');
           this.welcomeEntryNoteEl = document.querySelector('.welcome-entry-note');
+          this.returnHomeEl = document.getElementById('return-home');
           this.placementDebugEnabled = true;
           this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
@@ -522,6 +541,10 @@
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
           document.getElementById('reset-placement').addEventListener('beforexrselect', e => e.preventDefault());
           document.getElementById('reset-placement').addEventListener('click', () => this.resetPlacement());
+          if (this.returnHomeEl) {
+             this.returnHomeEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.returnHomeEl.addEventListener('click', () => this.returnToHome());
+          }
           if (this.placementDebugToggleEl) {
              this.placementDebugToggleEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.placementDebugToggleEl.addEventListener('click', () => {
@@ -1059,9 +1082,17 @@
                 this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
             }
             this.restoreHedgehogMaterial();
-            if (this.instructionEl) this.instructionEl.style.background = 'rgba(0, 0, 0, 0.5)';
             this.updateHint('换个地方，再把小动物放下来。');
             this.el.sceneEl.emit('placement-reset');
+        },
+
+        returnToHome: function() {
+            this.resetPlacement();
+            this.currentHint = '';
+            if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+            if (this.startExperienceEl) this.startExperienceEl.disabled = false;
+            if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
+            this.updateHint('找一块平坦的地面，把小动物放下来。');
         },
 
         showOctopusFilter: function() {
@@ -1316,6 +1347,7 @@
       <div id="octopus-screen-filter"></div>
 
       <div id="distance-ui">Initializing AR...</div>
+      <button id="return-home">返回首页</button>
       <button id="reset-placement">重新放置</button>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
