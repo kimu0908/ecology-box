@@ -293,8 +293,15 @@
         pointer-events: none; 
       }
 
-      #reset-placement {
+      #ar-top-actions {
         position: absolute; top: 22px; right: 22px; z-index: 1001;
+        display: flex; flex-direction: column; gap: 10px;
+        align-items: flex-end;
+        pointer-events: auto;
+      }
+
+      #reset-placement,
+      #return-home {
         pointer-events: auto;
         min-height: 48px;
         background: rgba(255, 253, 246, 0.7); color: #4f806a;
@@ -305,18 +312,6 @@
         box-shadow: 0 12px 28px rgba(52, 84, 77, 0.15), inset 0 1px 0 rgba(255,255,255,0.9);
       }
       #reset-placement::before { content: "↻ "; font-size: 1.1em; }
-
-      #return-home {
-        position: absolute; top: 22px; left: 22px; z-index: 1001;
-        pointer-events: auto;
-        min-height: 48px;
-        background: rgba(255, 253, 246, 0.7); color: #4f806a;
-        border: 1px solid rgba(255, 255, 255, 0.86);
-        border-radius: 999px; padding: 10px 18px;
-        font-size: clamp(15px, 2vw, 24px); font-weight: 850;
-        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-        box-shadow: 0 12px 28px rgba(52, 84, 77, 0.15), inset 0 1px 0 rgba(255,255,255,0.9);
-      }
       #return-home::before { content: "⌂ "; font-size: 1.1em; }
 
       .mode-btn {
@@ -423,13 +418,12 @@
           padding: 6px 8px;
           opacity: 0.28;
         }
-        #reset-placement {
+        #ar-top-actions {
           top: 16px; right: 14px;
-          min-height: 42px;
-          padding: 8px 13px;
+          gap: 8px;
         }
+        #reset-placement,
         #return-home {
-          top: 16px; left: 14px;
           min-height: 42px;
           padding: 8px 13px;
         }
@@ -696,6 +690,10 @@
            };
 
            try {
+              if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
+                 finish();
+                 return;
+              }
               var enterAR = scene.enterAR || scene.enterVR;
               if (!enterAR) {
                  fallback();
@@ -1347,8 +1345,10 @@
       <div id="octopus-screen-filter"></div>
 
       <div id="distance-ui">Initializing AR...</div>
-      <button id="return-home">返回首页</button>
-      <button id="reset-placement">重新放置</button>
+      <div id="ar-top-actions">
+        <button id="reset-placement">重新放置</button>
+        <button id="return-home">返回首页</button>
+      </div>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
         <div id="placement-debug-body"></div>
