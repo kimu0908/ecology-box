@@ -129,6 +129,11 @@
       .welcome-visual-placeholder {
         position: absolute; inset: 8% 7% 14%;
         border-radius: 32px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: end;
+        gap: clamp(12px, 2.6vw, 24px);
+        padding: clamp(18px, 3vw, 34px);
       }
       .welcome-orbit {
         position: absolute; border-radius: 50%;
@@ -139,25 +144,38 @@
       .welcome-orbit.two { width: 34%; aspect-ratio: 1; right: 10%; top: 39%; background: rgba(255, 172, 144, 0.2); }
       .welcome-orbit.three { width: 32%; aspect-ratio: 1; left: 34%; bottom: 8%; background: rgba(136, 218, 160, 0.22); }
       .welcome-animal {
-        position: absolute;
+        position: relative;
+        z-index: 2;
         display: grid; place-items: center;
-        width: clamp(78px, 16vw, 150px);
+        width: min(100%, clamp(92px, 13vw, 152px));
         aspect-ratio: 1;
         border-radius: 999px;
         background: rgba(255,255,255,0.78);
         border: 1px solid rgba(255,255,255,0.94);
         box-shadow: 0 15px 34px rgba(91, 118, 110, 0.2);
+        margin: 0 auto;
       }
       .welcome-animal img {
         width: 74%;
         height: 74%;
         object-fit: contain;
       }
-      .welcome-animal.puffer { left: 17%; top: 46%; }
-      .welcome-animal.octopus { right: 15%; top: 44%; }
-      .welcome-animal.hedgehog { left: 39%; bottom: 12%; }
+      .welcome-creature-card {
+        position: relative;
+        min-height: clamp(190px, 28vw, 300px);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+      }
+      .welcome-creature-card:nth-child(2) {
+        align-self: start;
+        padding-top: clamp(26px, 4vw, 46px);
+      }
       .welcome-tag {
-        position: absolute;
+        z-index: 3;
+        position: static;
         padding: 8px 12px;
         border-radius: 16px;
         background: rgba(255,255,255,0.7);
@@ -166,10 +184,12 @@
         font-weight: 850;
         font-size: clamp(12px, 1.5vw, 18px);
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        text-align: center;
+        white-space: nowrap;
       }
-      .welcome-tag.space { left: 12%; top: 24%; color: #2672a2; }
-      .welcome-tag.repair { right: 12%; top: 25%; color: #c46f4c; }
-      .welcome-tag.slow { right: 12%; bottom: 22%; color: #4e7a55; }
+      .welcome-tag.space { color: #2672a2; }
+      .welcome-tag.repair { color: #c46f4c; }
+      .welcome-tag.slow { color: #4e7a55; }
       .welcome-note {
         position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
         width: min(78%, 460px);
@@ -347,8 +367,20 @@
           min-height: min(48vh, 430px);
           order: -1;
         }
-        .welcome-animal { width: clamp(72px, 22vw, 110px); }
-        .welcome-tag { display: none; }
+        .welcome-visual-placeholder {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          padding: 16px 12px 22px;
+        }
+        .welcome-creature-card { min-height: 168px; gap: 8px; }
+        .welcome-creature-card:nth-child(2) { padding-top: 22px; }
+        .welcome-animal { width: clamp(76px, 24vw, 110px); }
+        .welcome-tag {
+          display: block;
+          padding: 7px 8px;
+          font-size: 12px;
+          white-space: normal;
+        }
         #distance-ui {
           top: 16px; left: 14px;
           max-width: 38vw;
@@ -458,6 +490,12 @@
             octopusNormal: new THREE.Vector3(0.18, 0.18, 0.18)
           };
           this.HEDGEHOG_YAW = HEDGEHOG_YAW;
+          this.placementFacingYaw = 0;
+          this.visualYawOffsets = {
+            pufferfish: 0,
+            octopus: 0,
+            hedgehog: THREE.MathUtils.degToRad(this.HEDGEHOG_YAW)
+          };
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
           document.getElementById('reset-placement').addEventListener('beforexrselect', e => e.preventDefault());
@@ -518,6 +556,7 @@
              Object.keys(this.models).forEach(key => {
                  this.models[key].setAttribute('position', { x: this.spawnPosition.x, y: this.spawnPosition.y, z: this.spawnPosition.z });
              });
+             this.faceVisualsToCameraOnce();
              this.showAnimal(this.mode);
              this.updateHint(this.getSafeHint(this.mode));
           });
@@ -1028,7 +1067,25 @@
 
         applyHedgehogYaw: function() {
             if (!this.visuals.hedgehog || !this.visuals.hedgehog.object3D) return;
-            this.visuals.hedgehog.object3D.rotation.y = THREE.MathUtils.degToRad(this.HEDGEHOG_YAW);
+            this.visuals.hedgehog.object3D.rotation.y = this.placementFacingYaw + this.visualYawOffsets.hedgehog;
+        },
+
+        faceVisualsToCameraOnce: function() {
+            if (!this.spawnPosition) return;
+            var cameraEl = document.querySelector('[camera]');
+            if (!cameraEl || !cameraEl.object3D) return;
+            var cameraPos = new THREE.Vector3();
+            cameraEl.object3D.getWorldPosition(cameraPos);
+            var dx = cameraPos.x - this.spawnPosition.x;
+            var dz = cameraPos.z - this.spawnPosition.z;
+            if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) return;
+
+            this.placementFacingYaw = Math.atan2(dx, dz);
+            Object.keys(this.visuals).forEach(key => {
+                if (!this.visuals[key] || !this.visuals[key].object3D) return;
+                var offset = this.visualYawOffsets[key] || 0;
+                this.visuals[key].object3D.rotation.y = this.placementFacingYaw + offset;
+            });
         },
 
         // === GLTF 材质操作工具 ===
@@ -1212,15 +1269,21 @@
           </div>
           <div class="welcome-terrarium" aria-hidden="true">
             <div class="welcome-visual-placeholder">
-              <span class="welcome-orbit one"></span>
-              <span class="welcome-orbit two"></span>
-              <span class="welcome-orbit three"></span>
-              <span class="welcome-animal puffer"><img src="assets/ui/cute-puffer.png" alt=""></span>
-              <span class="welcome-animal octopus"><img src="assets/ui/cute-octopus.png" alt=""></span>
-              <span class="welcome-animal hedgehog"><img src="assets/ui/cute-hedgehog.png" alt=""></span>
-              <span class="welcome-tag space">需要多一点空间</span>
-              <span class="welcome-tag repair">退远再修复</span>
-              <span class="welcome-tag slow">慢慢靠近</span>
+              <div class="welcome-creature-card">
+                <span class="welcome-tag space">需要多一点空间</span>
+                <span class="welcome-orbit one"></span>
+                <span class="welcome-animal puffer"><img src="assets/ui/cute-puffer.png" alt=""></span>
+              </div>
+              <div class="welcome-creature-card">
+                <span class="welcome-tag repair">退远再修复</span>
+                <span class="welcome-orbit two"></span>
+                <span class="welcome-animal octopus"><img src="assets/ui/cute-octopus.png" alt=""></span>
+              </div>
+              <div class="welcome-creature-card">
+                <span class="welcome-tag slow">慢慢靠近</span>
+                <span class="welcome-orbit three"></span>
+                <span class="welcome-animal hedgehog"><img src="assets/ui/cute-hedgehog.png" alt=""></span>
+              </div>
             </div>
             <span class="welcome-note">观察 · 理解 · 尊重</span>
           </div>
