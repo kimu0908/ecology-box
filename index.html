@@ -546,16 +546,48 @@
           margin: auto 0;
         }
         #instruction-text {
-          bottom: 124px;
-          width: min(58vw, 760px);
+          bottom: 132px;
+          width: min(54vw, 680px);
+          min-height: 48px;
+          padding: 10px 20px;
+          font-size: clamp(16px, 1.8vw, 22px);
+          border-radius: 22px;
         }
         #mentor-card {
           top: 142px;
           right: 22px;
         }
         #mode-selector {
-          width: min(62vw, 760px);
-          bottom: 20px;
+          width: min(54vw, 620px);
+          bottom: 18px;
+          gap: 18px;
+        }
+        .mode-btn {
+          width: 126px;
+          height: 86px;
+          border-radius: 24px;
+          padding: 7px 10px;
+        }
+        .mode-btn img {
+          width: 52px;
+          height: 52px;
+        }
+        .mode-btn span {
+          font-size: 18px;
+        }
+        #reset-placement,
+        #return-home,
+        #collection-open {
+          width: 142px;
+          height: 46px;
+          min-height: 46px;
+          padding: 0 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 17px;
+          white-space: nowrap;
+          border-radius: 999px;
         }
         #distance-ui {
           max-width: 390px;
