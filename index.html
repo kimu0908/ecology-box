@@ -290,6 +290,51 @@
         box-shadow: 0 18px 38px rgba(51, 88, 78, 0.16), inset 0 1px 0 rgba(255,255,255,0.92);
         backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
       }
+      #mentor-card {
+        position: absolute;
+        right: 22px;
+        top: 158px;
+        z-index: 1002;
+        width: min(340px, 78vw);
+        padding: 18px 18px 16px;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.84);
+        background: rgba(255, 253, 246, 0.82);
+        color: #2d5750;
+        box-shadow: 0 18px 42px rgba(48, 87, 76, 0.2), inset 0 1px 0 rgba(255,255,255,0.92);
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+        pointer-events: auto;
+        transition: opacity 240ms ease, transform 240ms ease, visibility 240ms ease;
+      }
+      #mentor-card.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-8px);
+      }
+      .mentor-card-title {
+        font-size: clamp(18px, 2.3vw, 24px);
+        font-weight: 900;
+        color: #246b62;
+        margin-bottom: 8px;
+      }
+      .mentor-card-body {
+        font-size: clamp(14px, 1.8vw, 18px);
+        line-height: 1.55;
+        font-weight: 700;
+        white-space: pre-line;
+      }
+      .mentor-card-close {
+        margin-top: 14px;
+        border: 1px solid rgba(255,255,255,0.8);
+        border-radius: 999px;
+        background: rgba(137, 224, 198, 0.72);
+        color: #245f58;
+        padding: 8px 16px;
+        font-size: 15px;
+        font-weight: 850;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+      }
       @keyframes breathe {
         0% { opacity: 0.7; transform: translateX(-50%) scale(0.98); }
         50% { opacity: 1; transform: translateX(-50%) scale(1.02); }
@@ -373,6 +418,10 @@
           bottom: 124px;
           width: min(58vw, 760px);
         }
+        #mentor-card {
+          top: 142px;
+          right: 22px;
+        }
         #mode-selector {
           width: min(62vw, 760px);
           bottom: 20px;
@@ -445,6 +494,11 @@
           padding: 14px 18px;
           border-radius: 22px;
         }
+        #mentor-card {
+          top: 96px;
+          right: 14px;
+          width: min(320px, 72vw);
+        }
         #mode-selector {
           bottom: 24px;
           width: calc(100vw - 28px);
@@ -493,6 +547,10 @@
           this.modeSelector = document.getElementById('mode-selector');
           this.instructionEl = document.getElementById('instruction-text');
           this.octopusFilterEl = document.getElementById('octopus-screen-filter');
+          this.mentorCardEl = document.getElementById('mentor-card');
+          this.mentorCardTitleEl = document.querySelector('.mentor-card-title');
+          this.mentorCardBodyEl = document.querySelector('.mentor-card-body');
+          this.mentorCardCloseEl = document.querySelector('.mentor-card-close');
           this.placementDebugEl = document.getElementById('placement-debug');
           this.placementDebugBodyEl = document.getElementById('placement-debug-body');
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
@@ -521,6 +579,12 @@
           this.octopusOverlayHideTimer = null;
           this.hedgehogHintTimer = null;
           this.hedgehogSafeTimer = null;
+          this.learningCardTimer = null;
+          this.completedLessons = {
+            pufferfish: false,
+            octopus: false,
+            hedgehog: false
+          };
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -566,6 +630,10 @@
                 this.placementDebugExpanded = !this.placementDebugExpanded;
                 this.placementDebugEl.classList.toggle('expanded', this.placementDebugExpanded);
              });
+          }
+          if (this.mentorCardCloseEl) {
+             this.mentorCardCloseEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.mentorCardCloseEl.addEventListener('click', () => this.hideLearningCard());
           }
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.setStartButtonLoading();
@@ -906,10 +974,10 @@
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
-                    this.updateHint('你靠得太近啦，河豚被挤到了。', { minDuration: 1800, priority: 'important' });
+                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { minDuration: 1800, priority: 'important' });
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = setTimeout(() => {
-                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退后一点，给河豚多一点空间。');
+                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退开一点，我就能慢慢弹回来。');
                     }, 1800);
                  }
               } else {
@@ -918,7 +986,8 @@
                     this.pufferfishHintState = 'recovering';
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = null;
-                    this.updateHint('河豚又鼓回来了，距离舒服多了。');
+                    this.updateHint('这样刚刚好，我们都舒服多了。');
+                    this.showLearningCard('pufferfish');
                     if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
                     this.pufferfishSafeTimer = setTimeout(() => {
                        if (this.mode === 'pufferfish' && this.pufferfishHintState === 'recovering') {
@@ -967,15 +1036,16 @@
                   
                   this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
-                  this.updateHint('你冲得太快了，刺猬紧张了。', { minDuration: 1800, priority: 'important' });
+                  this.updateHint('你太快了，我有点害怕！先退后一点。', { minDuration: 1800, priority: 'important' });
                   if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
                   this.hedgehogHintTimer = setTimeout(() => {
-                     if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('退后一点，安静等一等。');
+                     if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('很好，请保持距离，安静等我一下。');
                   }, 1800);
               } 
               else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
-                  this.updateHint('你慢慢靠近了，刺猬觉得很安心。');
+                  this.updateHint('你靠近得很温柔，我觉得安心多了。');
+                  this.showLearningCard('hedgehog');
               }
               else if (surfaceDistance >= 0.8) {
                   // 2. 延迟抚慰：只有从报错状态退后，才能启动防抖倒计时
@@ -984,14 +1054,15 @@
                       if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
                       this.hedgehogHintTimer = null;
                       
-                      this.updateHint('很好，保持这个距离一会儿。');
+                      this.updateHint('很好，请保持距离，安静等我一下。');
                       
                       this.hedgehogTimer = setTimeout(() => {
                           // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
-                              this.updateHint('刺猬放松了，你慢下来它就安心了。');
+                              this.updateHint('慢慢靠近，真的会让人更放心。');
+                              this.showLearningCard('hedgehog');
                               if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
                               this.hedgehogSafeTimer = setTimeout(() => {
                                  if (this.mode === 'hedgehog' && this.hedgehogState === 'friend') {
@@ -1062,6 +1133,38 @@
             if (opts.minDuration) this.hintLockedUntil = now + opts.minDuration;
         },
 
+        showLearningCard: function(type) {
+            if (!this.completedLessons || this.completedLessons[type]) return;
+            var lessons = {
+              pufferfish: {
+                title: '你学会了：柔性边界',
+                body: '河豚可以让你靠近一点，\n但太近还是会被挤到。\n退后一点，是一种温柔的照顾。'
+              },
+              octopus: {
+                title: '你学会了：融合边界',
+                body: '章鱼很热情，一靠近就容易黏上来。\n当空间混在一起时，先退远一点，\n才能重新找回舒服的距离。'
+              },
+              hedgehog: {
+                title: '你学会了：隐形边界',
+                body: '刺猬的边界看不见，\n但它真的存在。\n慢慢靠近、安静等待，\n会让谨慎的朋友更安心。'
+              }
+            };
+            var lesson = lessons[type];
+            if (!lesson || !this.mentorCardEl) return;
+            this.completedLessons[type] = true;
+            if (this.mentorCardTitleEl) this.mentorCardTitleEl.innerText = lesson.title;
+            if (this.mentorCardBodyEl) this.mentorCardBodyEl.innerText = lesson.body;
+            this.mentorCardEl.classList.remove('hidden');
+            if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
+            this.learningCardTimer = setTimeout(() => this.hideLearningCard(), 5600);
+        },
+
+        hideLearningCard: function() {
+            if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
+            this.learningCardTimer = null;
+            if (this.mentorCardEl) this.mentorCardEl.classList.add('hidden');
+        },
+
         clearHintTimers: function(resetOctopusState) {
             if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
             if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
@@ -1085,9 +1188,9 @@
         },
 
         getSafeHint: function(mode) {
-            if (mode === 'pufferfish') return '距离刚刚好，河豚很放松。';
-            if (mode === 'octopus') return '章鱼在安静地看着你。';
-            if (mode === 'hedgehog') return '刺猬喜欢你慢慢靠近。';
+            if (mode === 'pufferfish') return '可以靠近一点，但别挤到我喔。';
+            if (mode === 'octopus') return '我很热情，靠近了可能会黏住你喔。';
+            if (mode === 'hedgehog') return '别急，慢慢来，我会更安心。';
             return '慢慢靠近，看看它喜欢多大的空间。';
         },
 
@@ -1103,20 +1206,20 @@
                 return;
             }
             if (state === 'triggered') {
-                this.updateHint('章鱼觉得太近了，喷出了黏黏保护膜。', { minDuration: 1800, priority: 'important' });
+                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { minDuration: 1800, priority: 'important' });
                 return;
             }
             if (state === 'stuckTooClose') {
                 this.hintLockedUntil = 0;
-                this.updateHint('太近了，黏液还甩不掉。退远一点再试试。', { priority: 'important' });
+                this.updateHint('现在太近了，先退远一点，找回你的空间。', { priority: 'important' });
                 return;
             }
             if (state === 'readyToShake') {
-                this.updateHint('很好，现在甩一甩手机，把黏液甩掉。');
+                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。');
                 return;
             }
             if (state === 'cooldown') {
-                this.updateHint('黏液甩掉了，章鱼放松了。');
+                this.updateHint('我们拉开一点距离，就会更自在。');
             }
         },
 
@@ -1179,6 +1282,7 @@
                 this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
             }
             if (this.mode === 'octopus') this.setOctopusHintState('cooldown');
+            this.showLearningCard('octopus');
             this.octopusSafeTimer = setTimeout(() => {
                 if (this.mode === 'octopus' && this.octopusState === 'cooldown') this.enterOctopusSafe();
             }, 1400);
@@ -1196,6 +1300,12 @@
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.clearHintTimers(true);
+            this.completedLessons = {
+                pufferfish: false,
+                octopus: false,
+                hedgehog: false
+            };
+            this.hideLearningCard();
             this.hedgehogState = 'idle';
             this.hedgehogSlowApproachPraised = false;
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
@@ -1488,6 +1598,11 @@
         <div id="placement-debug-body"></div>
       </div>
       <div id="instruction-text"></div>
+      <div id="mentor-card" class="mentor-card hidden" aria-live="polite">
+        <div class="mentor-card-title">你学会了</div>
+        <div class="mentor-card-body"></div>
+        <button class="mentor-card-close" type="button">知道了</button>
+      </div>
 
       <div id="mode-selector">
         <button class="mode-btn active" id="btn-pufferfish">
