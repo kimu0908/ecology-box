@@ -929,15 +929,8 @@
 
           if (this.mode === 'pufferfish' && this.pufferfishHintState !== 'close' && this.visuals.pufferfish) {
              var puffer = this.visuals.pufferfish.object3D;
-             var pufferBreath = 1 + Math.sin(t * 2.4) * 0.025;
-             var pufferFloat = Math.sin(t * 1.8) * 0.012;
              puffer.position.copy(this.visualBasePositions.pufferfish);
-             puffer.position.y += pufferFloat;
-             puffer.scale.set(
-                this.visualScales.pufferfishNormal.x * pufferBreath,
-                this.visualScales.pufferfishNormal.y * (1 + Math.sin(t * 2.4 + 0.8) * 0.018),
-                this.visualScales.pufferfishNormal.z * pufferBreath
-             );
+             puffer.position.y += Math.sin(t * 1.8) * 0.01;
           }
 
           if (this.mode === 'octopus' && this.octopusState === 'safe' && this.visuals.octopus) {
