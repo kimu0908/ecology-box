@@ -356,7 +356,8 @@
       }
 
       #reset-placement,
-      #return-home {
+      #return-home,
+      #collection-open {
         pointer-events: auto;
         min-height: 48px;
         background: rgba(255, 253, 246, 0.7); color: #4f806a;
@@ -368,6 +369,7 @@
       }
       #reset-placement::before { content: "↻ "; font-size: 1.1em; }
       #return-home::before { content: "⌂ "; font-size: 1.1em; }
+      #collection-open::before { content: "◇ "; font-size: 1.1em; }
 
       .mode-btn {
         pointer-events: auto;
@@ -398,6 +400,135 @@
       }
       #btn-octopus span { color: #6b55a0; }
       #btn-hedgehog span { color: #4f7a55; }
+
+      #collection-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 1003;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        background: rgba(230, 248, 240, 0.28);
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        pointer-events: auto;
+        transition: opacity 240ms ease, visibility 240ms ease;
+      }
+      #collection-overlay.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .collection-panel {
+        width: min(920px, 94vw);
+        max-height: min(82dvh, 720px);
+        overflow-y: auto;
+        padding: clamp(18px, 3vw, 30px);
+        border-radius: 30px;
+        border: 1px solid rgba(255,255,255,0.84);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(154, 226, 198, 0.34), transparent 24%),
+          radial-gradient(circle at 88% 18%, rgba(158, 212, 238, 0.3), transparent 22%),
+          rgba(255, 253, 246, 0.86);
+        box-shadow: 0 24px 68px rgba(44, 83, 75, 0.24), inset 0 1px 0 rgba(255,255,255,0.92);
+      }
+      .collection-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+      .collection-title {
+        margin: 0;
+        color: #185a55;
+        font-size: clamp(28px, 4vw, 44px);
+        font-weight: 950;
+        letter-spacing: 0;
+      }
+      .collection-subtitle {
+        margin: 6px 0 0;
+        color: #557a72;
+        font-size: clamp(15px, 2vw, 20px);
+        font-weight: 750;
+      }
+      .collection-close {
+        flex: none;
+        border: 1px solid rgba(255,255,255,0.86);
+        border-radius: 999px;
+        background: rgba(137, 224, 198, 0.72);
+        color: #245f58;
+        padding: 10px 16px;
+        font-size: 16px;
+        font-weight: 850;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+      }
+      .collection-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(12px, 2vw, 20px);
+      }
+      .collection-card {
+        min-height: 250px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 14px 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.82);
+        background: rgba(255,255,255,0.62);
+        box-shadow: 0 14px 32px rgba(46, 86, 77, 0.13), inset 0 1px 0 rgba(255,255,255,0.92);
+        text-align: center;
+      }
+      .collection-card:not(.learned) {
+        opacity: 0.58;
+        filter: grayscale(0.75);
+      }
+      .collection-card.learned {
+        background: rgba(238, 255, 245, 0.78);
+        box-shadow: 0 16px 36px rgba(96, 190, 154, 0.22), inset 0 1px 0 rgba(255,255,255,0.95);
+      }
+      .collection-card img {
+        width: min(130px, 28vw);
+        aspect-ratio: 1 / 1;
+        object-fit: contain;
+        background: transparent;
+      }
+      .collection-card h3 {
+        margin: 0;
+        color: #225e59;
+        font-size: clamp(21px, 2.4vw, 28px);
+        font-weight: 950;
+      }
+      .collection-type {
+        color: #5f8d7a;
+        font-size: 15px;
+        font-weight: 850;
+      }
+      .collection-desc {
+        margin: 4px 0 0;
+        color: #314f4a;
+        font-size: 15px;
+        line-height: 1.42;
+        font-weight: 720;
+      }
+      .collection-status {
+        margin-top: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 82px;
+        min-height: 28px;
+        border-radius: 999px;
+        background: rgba(204, 213, 209, 0.5);
+        color: #5f6d68;
+        font-size: 14px;
+        font-weight: 880;
+      }
+      .collection-card.learned .collection-status {
+        background: rgba(115, 218, 184, 0.72);
+        color: #1f655c;
+      }
 
       .a-enter-vr,
       .a-enter-ar {
@@ -483,7 +614,8 @@
           gap: 8px;
         }
         #reset-placement,
-        #return-home {
+        #return-home,
+        #collection-open {
           min-height: 42px;
           padding: 8px 13px;
         }
@@ -498,6 +630,12 @@
           top: 96px;
           right: 14px;
           width: min(320px, 72vw);
+        }
+        .collection-grid {
+          grid-template-columns: 1fr;
+        }
+        .collection-panel {
+          max-height: 84dvh;
         }
         #mode-selector {
           bottom: 24px;
@@ -551,6 +689,9 @@
           this.mentorCardTitleEl = document.querySelector('.mentor-card-title');
           this.mentorCardBodyEl = document.querySelector('.mentor-card-body');
           this.mentorCardCloseEl = document.querySelector('.mentor-card-close');
+          this.collectionOpenEl = document.getElementById('collection-open');
+          this.collectionOverlayEl = document.getElementById('collection-overlay');
+          this.collectionCloseEl = document.getElementById('collection-close');
           this.placementDebugEl = document.getElementById('placement-debug');
           this.placementDebugBodyEl = document.getElementById('placement-debug-body');
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
@@ -585,6 +726,8 @@
             octopus: false,
             hedgehog: false
           };
+          this.collectionStorageKey = 'boundaryTerrariumCollection';
+          this.collectionProgress = this.loadCollectionProgress();
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -635,6 +778,15 @@
              this.mentorCardCloseEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.mentorCardCloseEl.addEventListener('click', () => this.hideLearningCard());
           }
+          if (this.collectionOpenEl) {
+             this.collectionOpenEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.collectionOpenEl.addEventListener('click', () => this.openCollection());
+          }
+          if (this.collectionCloseEl) {
+             this.collectionCloseEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.collectionCloseEl.addEventListener('click', () => this.closeCollection());
+          }
+          this.updateCollectionUI();
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.setStartButtonLoading();
              this.watchAppReady();
@@ -1135,6 +1287,7 @@
         },
 
         showLearningCard: function(type) {
+            this.unlockCollection(type);
             if (!this.completedLessons || this.completedLessons[type]) return;
             var lessons = {
               pufferfish: {
@@ -1164,6 +1317,63 @@
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
             this.learningCardTimer = null;
             if (this.mentorCardEl) this.mentorCardEl.classList.add('hidden');
+        },
+
+        loadCollectionProgress: function() {
+            var fallback = { pufferfish: false, octopus: false, hedgehog: false };
+            try {
+                var saved = localStorage.getItem(this.collectionStorageKey);
+                if (!saved) return fallback;
+                var parsed = JSON.parse(saved);
+                return {
+                    pufferfish: !!parsed.pufferfish,
+                    octopus: !!parsed.octopus,
+                    hedgehog: !!parsed.hedgehog
+                };
+            } catch (error) {
+                console.warn('Collection progress load failed:', error);
+                return fallback;
+            }
+        },
+
+        saveCollectionProgress: function() {
+            try {
+                localStorage.setItem(this.collectionStorageKey, JSON.stringify(this.collectionProgress));
+            } catch (error) {
+                console.warn('Collection progress save failed:', error);
+            }
+        },
+
+        unlockCollection: function(type) {
+            if (!this.collectionProgress || !(type in this.collectionProgress)) return;
+            if (this.collectionProgress[type]) {
+                this.updateCollectionUI();
+                return;
+            }
+            this.collectionProgress[type] = true;
+            this.saveCollectionProgress();
+            this.updateCollectionUI();
+        },
+
+        updateCollectionUI: function() {
+            if (!this.collectionProgress) return;
+            Object.keys(this.collectionProgress).forEach(type => {
+                var card = document.querySelector('[data-collection-card="' + type + '"]');
+                if (!card) return;
+                var learned = !!this.collectionProgress[type];
+                card.classList.toggle('learned', learned);
+                var status = card.querySelector('.collection-status');
+                if (status) status.innerText = learned ? '已学习' : '未学习';
+            });
+        },
+
+        openCollection: function() {
+            this.updateCollectionUI();
+            if (this.collectionOverlayEl) this.collectionOverlayEl.classList.remove('hidden');
+        },
+
+        closeCollection: function() {
+            if (this.collectionOverlayEl) this.collectionOverlayEl.classList.add('hidden');
         },
 
         clearHintTimers: function(resetOctopusState) {
@@ -1593,6 +1803,7 @@
       <div id="ar-top-actions">
         <button id="reset-placement">重新放置</button>
         <button id="return-home">返回首页</button>
+        <button id="collection-open">边界图鉴</button>
       </div>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
@@ -1603,6 +1814,40 @@
         <div class="mentor-card-title">你学会了</div>
         <div class="mentor-card-body"></div>
         <button class="mentor-card-close" type="button">我知道了</button>
+      </div>
+      <div id="collection-overlay" class="hidden" aria-live="polite">
+        <section class="collection-panel">
+          <div class="collection-header">
+            <div>
+              <h2 class="collection-title">边界图鉴</h2>
+              <p class="collection-subtitle">把你学会的边界规则收录起来吧</p>
+            </div>
+            <button id="collection-close" class="collection-close" type="button">关闭图鉴</button>
+          </div>
+          <div class="collection-grid">
+            <article class="collection-card" data-collection-card="pufferfish">
+              <img src="assets/ui/cute-puffer.png" alt="河豚">
+              <h3>河豚</h3>
+              <div class="collection-type">柔性边界</div>
+              <p class="collection-desc">可以靠近一点，但别挤过头。</p>
+              <span class="collection-status">未学习</span>
+            </article>
+            <article class="collection-card" data-collection-card="octopus">
+              <img src="assets/ui/cute-octopus.png" alt="章鱼">
+              <h3>章鱼</h3>
+              <div class="collection-type">融合边界</div>
+              <p class="collection-desc">太热情时，也要找回彼此的空间。</p>
+              <span class="collection-status">未学习</span>
+            </article>
+            <article class="collection-card" data-collection-card="hedgehog">
+              <img src="assets/ui/cute-hedgehog.png" alt="刺猬">
+              <h3>刺猬</h3>
+              <div class="collection-type">隐形边界</div>
+              <p class="collection-desc">慢慢靠近，等待也是尊重。</p>
+              <span class="collection-status">未学习</span>
+            </article>
+          </div>
+        </section>
       </div>
 
       <div id="mode-selector">
