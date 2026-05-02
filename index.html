@@ -773,6 +773,7 @@
           this.currentHint = '';
           this.hintLockedUntil = 0;
           this.pufferfishHintState = 'safe';
+          this.wasPufferfishPressed = false;
           this.pufferfishHintTimer = null;
           this.pufferfishSafeTimer = null;
           this.octopusState = 'safe';
@@ -1027,13 +1028,21 @@
               uiSuccess: 'ui-success.mp3',
               uiErrorSoft: 'ui-error-soft.mp3',
               pufferSquish: 'puffer-squish.mp3',
+              'puffer-squish': 'puffer-squish.mp3',
               pufferRecover: 'puffer-recover.mp3',
+              'puffer-recover': 'puffer-recover.mp3',
               octopusSticky: 'octopus-sticky.mp3',
+              'octopus-sticky': 'octopus-sticky.mp3',
               octopusReady: 'octopus-ready.mp3',
+              'octopus-ready': 'octopus-ready.mp3',
               octopusRelease: 'octopus-release.mp3',
+              'octopus-release': 'octopus-release.mp3',
               hedgehogAlarm: 'hedgehog-alarm.mp3',
+              'hedgehog-alarm': 'hedgehog-alarm.mp3',
               hedgehogCalm: 'hedgehog-calm.mp3',
+              'hedgehog-calm': 'hedgehog-calm.mp3',
               hedgehogSlowSuccess: 'hedgehog-slow-success.mp3',
+              'hedgehog-slow-success': 'hedgehog-slow-success.mp3',
               learningCardOpen: 'learning-card-open.mp3',
               collectionUnlock: 'collection-unlock.mp3'
            };
@@ -1118,6 +1127,7 @@
            try {
               window.speechSynthesis.cancel();
               this.currentVoice = null;
+              this.lastSpokenHint = '';
            } catch (error) {
               console.warn('Voice stop failed:', error);
            }
@@ -1355,23 +1365,29 @@
             case 'pufferfish':
               if (surfaceDistance < 0.6) {
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
+                 if (!this.wasPufferfishPressed) {
+                    this.wasPufferfishPressed = true;
+                    this.playSfx('puffer-squish');
+                 }
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
-                    this.playSfx('pufferSquish');
-                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { minDuration: 1800, priority: 'important' });
+                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { lockMs: 3000, priority: 'important', force: true });
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = setTimeout(() => {
-                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退开一点，我就能慢慢弹回来。');
-                    }, 1800);
+                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退开一点，我就能慢慢弹回来。', { lockMs: 3000 });
+                    }, 3000);
                  }
               } else {
                  pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
+                 if (this.wasPufferfishPressed) {
+                    this.wasPufferfishPressed = false;
+                    this.playSfx('puffer-recover');
+                 }
                  if (this.pufferfishHintState === 'close') {
                     this.pufferfishHintState = 'recovering';
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = null;
-                    this.playSfx('pufferRecover');
-                    this.updateHint('这样刚刚好，我们都舒服多了。');
+                    this.updateHint('这样刚刚好，我们都舒服多了。', { lockMs: 3000, priority: 'important', force: true });
                     this.showLearningCard('pufferfish');
                     if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
                     this.pufferfishSafeTimer = setTimeout(() => {
@@ -1413,7 +1429,7 @@
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
                   this.hedgehogSlowApproachPraised = false;
-                  this.playSfx('hedgehogAlarm');
+                  this.playSfx('hedgehog-alarm');
                   
                   if (this.hedgehogTimer) {
                       clearTimeout(this.hedgehogTimer);
@@ -1422,16 +1438,16 @@
                   
                   this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
-                  this.updateHint('你太快了，我有点害怕！先退后一点。', { minDuration: 1800, priority: 'important' });
+                  this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true });
                   if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
                   this.hedgehogHintTimer = setTimeout(() => {
-                     if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('很好，请保持距离，安静等我一下。');
-                  }, 1800);
+                     if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000 });
+                  }, 3000);
               } 
               else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
-                  this.playSfx('hedgehogSlowSuccess');
-                  this.updateHint('你靠近得很温柔，我觉得安心多了。');
+                  this.playSfx('hedgehog-slow-success');
+                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true });
                   this.showLearningCard('hedgehog');
               }
               else if (surfaceDistance >= 0.8) {
@@ -1441,15 +1457,15 @@
                       if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
                       this.hedgehogHintTimer = null;
                       
-                      this.updateHint('很好，请保持距离，安静等我一下。');
+                      this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000, priority: 'important', force: true });
                       
                       this.hedgehogTimer = setTimeout(() => {
                           // 3. 最终解锁：如果 3 秒后仍然是在局内待机且没有越界
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
-                              this.playSfx('hedgehogCalm');
-                              this.updateHint('慢慢靠近，真的会让人更放心。');
+                              this.playSfx('hedgehog-calm');
+                              this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true });
                               this.showLearningCard('hedgehog');
                               if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
                               this.hedgehogSafeTimer = setTimeout(() => {
@@ -1514,11 +1530,12 @@
         updateHint: function(message, options) {
             var now = performance.now();
             var opts = options || {};
-            if (this.hintLockedUntil > now && opts.priority !== 'important') return;
+            if (this.hintLockedUntil > now && opts.priority !== 'important' && opts.force !== true) return;
             if (!this.instructionEl || this.currentHint === message) return;
             this.currentHint = message;
             this.instructionEl.innerText = message;
-            if (opts.minDuration) this.hintLockedUntil = now + opts.minDuration;
+            var lockMs = opts.lockMs || opts.minDuration || 0;
+            if (lockMs) this.hintLockedUntil = now + lockMs;
             this.speakHint(message);
         },
 
@@ -1657,20 +1674,19 @@
                 return;
             }
             if (state === 'triggered') {
-                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { minDuration: 1800, priority: 'important' });
+                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { lockMs: 3000, priority: 'important', force: true });
                 return;
             }
             if (state === 'stuckTooClose') {
-                this.hintLockedUntil = 0;
-                this.updateHint('现在太近了，先退远一点，找回你的空间。', { priority: 'important' });
+                this.updateHint('现在太近了，先退远一点，找回你的空间。', { lockMs: 3000, priority: 'important', force: true });
                 return;
             }
             if (state === 'readyToShake') {
-                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。');
+                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。', { lockMs: 3000, priority: 'important', force: true });
                 return;
             }
             if (state === 'cooldown') {
-                this.updateHint('我们拉开一点距离，就会更自在。', { minDuration: 2500, priority: 'important' });
+                this.updateHint('我们拉开一点距离，就会更自在。', { lockMs: 3000, priority: 'important', force: true });
             }
         },
 
@@ -1697,11 +1713,11 @@
             this.isOctopusAttached = true;
             if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
             this.showOctopusFilter();
-            this.playSfx('octopusSticky');
+            this.playSfx('octopus-sticky');
             this.setOctopusHintState('triggered');
             this.octopusHintTimer = setTimeout(() => {
                 if (this.mode === 'octopus' && this.octopusState === 'triggered') this.enterOctopusStuckTooClose();
-            }, 1800);
+            }, 3000);
         },
 
         enterOctopusStuckTooClose: function() {
@@ -1717,7 +1733,7 @@
             this.octopusState = 'readyToShake';
             this.isOctopusAttached = true;
             if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
-            this.playSfx('octopusReady');
+            this.playSfx('octopus-ready');
             if (this.mode === 'octopus') this.setOctopusHintState('readyToShake');
         },
 
@@ -1727,7 +1743,7 @@
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.hideOctopusFilter();
-            this.playSfx('octopusRelease');
+            this.playSfx('octopus-release');
             if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
                 this.models.octopus.setAttribute('visible', 'true');
             }
@@ -1749,6 +1765,7 @@
             this.correctedAnchorPosition = null;
             this.previousDistance = null;
             this.pufferfishHintState = 'safe';
+            this.wasPufferfishPressed = false;
             this.octopusState = 'safe';
             this.octopusHintState = 'safe';
             this.isOctopusAttached = false;
