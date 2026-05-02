@@ -796,6 +796,7 @@
           this.lastSfxTime = {};
           this.activeSfx = [];
           this.lastSpokenHint = '';
+          this.lastSpokenAt = 0;
           this.currentVoice = null;
           this.bgmAudio = null;
           this.initAudio();
@@ -939,7 +940,7 @@
              });
              this.faceVisualsToCameraOnce();
              this.showAnimal(this.mode);
-             this.updateHint(this.getSafeHint(this.mode));
+             this.updateHint(this.getSafeHint(this.mode), { speak: true, lockMs: 2200 });
           });
 
           this.el.addEventListener('hint-message', (e) => {
@@ -1086,8 +1087,10 @@
         playSfx: function(name, cooldown) {
            if (!this.soundEnabled || !this.sfxMap[name]) return;
            var now = performance.now();
-           var wait = cooldown || 650;
+           var wait = cooldown || 900;
            if (this.lastSfxTime[name] && now - this.lastSfxTime[name] < wait) return;
+           this.activeSfx = (this.activeSfx || []).filter(audio => !audio.ended && !audio.paused);
+           if (this.activeSfx.length >= 6 && name.indexOf('ui') === 0) return;
            this.lastSfxTime[name] = now;
            try {
               var audio = this.sfxMap[name].cloneNode(true);
@@ -1122,12 +1125,15 @@
            }
         },
 
-        stopVoice: function() {
+        stopVoice: function(resetLastSpoken) {
            if (!window.speechSynthesis) return;
            try {
               window.speechSynthesis.cancel();
               this.currentVoice = null;
-              this.lastSpokenHint = '';
+              if (resetLastSpoken) {
+                 this.lastSpokenHint = '';
+                 this.lastSpokenAt = 0;
+              }
            } catch (error) {
               console.warn('Voice stop failed:', error);
            }
@@ -1135,7 +1141,7 @@
 
         stopAllAudio: function() {
            this.stopBgm();
-           this.stopVoice();
+           this.stopVoice(true);
            if (this.activeSfx) {
               this.activeSfx.forEach(audio => {
                  try {
@@ -1148,16 +1154,23 @@
         },
 
         speakHint: function(text) {
-           if (!this.soundEnabled || !text || this.lastSpokenHint === text) return;
+           if (!this.soundEnabled || !text) return;
            if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-           this.lastSpokenHint = text;
-           this.stopVoice();
+           var now = performance.now();
+           if (text === this.lastSpokenHint && now - this.lastSpokenAt < 4000) return;
+           try {
+              window.speechSynthesis.cancel();
+           } catch (error) {}
            try {
               var utterance = new SpeechSynthesisUtterance(text);
               utterance.lang = 'zh-TW';
               utterance.rate = 0.9;
               utterance.pitch = 1.05;
               utterance.volume = 1;
+              utterance.onend = () => { this.currentVoice = null; };
+              utterance.onerror = () => { this.currentVoice = null; };
+              this.lastSpokenHint = text;
+              this.lastSpokenAt = now;
               this.currentVoice = utterance;
               window.speechSynthesis.speak(utterance);
            } catch (error) {
@@ -1274,6 +1287,7 @@
 
         switchMode: function (newMode) {
           this.mode = newMode;
+          this.stopVoice(false);
           this.hideLearningCard();
           this.clearHintTimers(true);
           this.hideOctopusFilter();
@@ -1371,7 +1385,7 @@
                  }
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
-                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { lockMs: 3000, priority: 'important', force: true });
+                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { lockMs: 3000, priority: 'important', force: true, speak: true });
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = setTimeout(() => {
                        if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退开一点，我就能慢慢弹回来。', { lockMs: 3000 });
@@ -1387,7 +1401,7 @@
                     this.pufferfishHintState = 'recovering';
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = null;
-                    this.updateHint('这样刚刚好，我们都舒服多了。', { lockMs: 3000, priority: 'important', force: true });
+                    this.updateHint('这样刚刚好，我们都舒服多了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
                     this.showLearningCard('pufferfish');
                     if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
                     this.pufferfishSafeTimer = setTimeout(() => {
@@ -1425,7 +1439,7 @@
                   this.hedgehogSlowApproachPraised = false;
               }
 
-              if (surfaceDistance < 0.6 && approachVelocity > 0.3) {
+              if (this.hedgehogState !== 'alarm' && this.hedgehogState !== 'waiting' && surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
                   this.hedgehogSlowApproachPraised = false;
@@ -1438,7 +1452,7 @@
                   
                   this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
                   
-                  this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true });
+                  this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true });
                   if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
                   this.hedgehogHintTimer = setTimeout(() => {
                      if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000 });
@@ -1447,7 +1461,7 @@
               else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
                   this.playSfx('hedgehog-slow-success');
-                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true });
+                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
                   this.showLearningCard('hedgehog');
               }
               else if (surfaceDistance >= 0.8) {
@@ -1465,7 +1479,7 @@
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
                               this.playSfx('hedgehog-calm');
-                              this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true });
+                              this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true, speak: true });
                               this.showLearningCard('hedgehog');
                               if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
                               this.hedgehogSafeTimer = setTimeout(() => {
@@ -1536,7 +1550,7 @@
             this.instructionEl.innerText = message;
             var lockMs = opts.lockMs || opts.minDuration || 0;
             if (lockMs) this.hintLockedUntil = now + lockMs;
-            this.speakHint(message);
+            if (opts.speak === true) this.speakHint(message);
         },
 
         showLearningCard: function(type) {
@@ -1568,6 +1582,7 @@
         },
 
         hideLearningCard: function() {
+            this.stopVoice(false);
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
             this.learningCardTimer = null;
             if (this.mentorCardEl) this.mentorCardEl.classList.add('hidden');
@@ -1674,7 +1689,7 @@
                 return;
             }
             if (state === 'triggered') {
-                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { lockMs: 3000, priority: 'important', force: true });
+                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { lockMs: 3000, priority: 'important', force: true, speak: true });
                 return;
             }
             if (state === 'stuckTooClose') {
@@ -1682,11 +1697,11 @@
                 return;
             }
             if (state === 'readyToShake') {
-                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。', { lockMs: 3000, priority: 'important', force: true });
+                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
                 return;
             }
             if (state === 'cooldown') {
-                this.updateHint('我们拉开一点距离，就会更自在。', { lockMs: 3000, priority: 'important', force: true });
+                this.updateHint('我们拉开一点距离，就会更自在。', { lockMs: 3000, priority: 'important', force: true, speak: true });
             }
         },
 
@@ -1771,7 +1786,7 @@
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.clearHintTimers(true);
-            this.stopVoice();
+            this.stopVoice(true);
             this.completedLessons = {
                 pufferfish: false,
                 octopus: false,
