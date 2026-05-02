@@ -882,6 +882,7 @@
 
         switchMode: function (newMode) {
           this.mode = newMode;
+          this.hideLearningCard();
           this.clearHintTimers(true);
           this.hideOctopusFilter();
           this.octopusState = 'safe';
@@ -1156,7 +1157,7 @@
             if (this.mentorCardBodyEl) this.mentorCardBodyEl.innerText = lesson.body;
             this.mentorCardEl.classList.remove('hidden');
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
-            this.learningCardTimer = setTimeout(() => this.hideLearningCard(), 5600);
+            this.learningCardTimer = null;
         },
 
         hideLearningCard: function() {
@@ -1219,7 +1220,7 @@
                 return;
             }
             if (state === 'cooldown') {
-                this.updateHint('我们拉开一点距离，就会更自在。');
+                this.updateHint('我们拉开一点距离，就会更自在。', { minDuration: 2500, priority: 'important' });
             }
         },
 
@@ -1285,7 +1286,7 @@
             this.showLearningCard('octopus');
             this.octopusSafeTimer = setTimeout(() => {
                 if (this.mode === 'octopus' && this.octopusState === 'cooldown') this.enterOctopusSafe();
-            }, 1400);
+            }, 2500);
         },
 
         resetPlacement: function() {
@@ -1601,7 +1602,7 @@
       <div id="mentor-card" class="mentor-card hidden" aria-live="polite">
         <div class="mentor-card-title">你学会了</div>
         <div class="mentor-card-body"></div>
-        <button class="mentor-card-close" type="button">知道了</button>
+        <button class="mentor-card-close" type="button">我知道了</button>
       </div>
 
       <div id="mode-selector">
