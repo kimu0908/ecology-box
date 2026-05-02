@@ -524,7 +524,13 @@
           this.visualScales = {
             pufferfishNormal: new THREE.Vector3(0.002, 0.002, 0.002),
             pufferfishPressed: new THREE.Vector3(0.0022, 0.0007, 0.0022),
-            octopusNormal: new THREE.Vector3(0.18, 0.18, 0.18)
+            octopusNormal: new THREE.Vector3(0.18, 0.18, 0.18),
+            hedgehogNormal: new THREE.Vector3(0.4, 0.4, 0.4)
+          };
+          this.visualBasePositions = {
+            pufferfish: new THREE.Vector3(0, 0.35, 0),
+            octopus: new THREE.Vector3(0, 0, 0),
+            hedgehog: new THREE.Vector3(0, 0, 0)
           };
           this.HEDGEHOG_YAW = HEDGEHOG_YAW;
           this.placementFacingYaw = 0;
@@ -912,6 +918,46 @@
                   }
               }
               break;
+          }
+
+          this.applyIdleAnimations(time);
+        },
+
+        applyIdleAnimations: function(time) {
+          if (!this.isSpawned) return;
+          var t = time / 1000;
+
+          if (this.mode === 'pufferfish' && this.pufferfishHintState !== 'close' && this.visuals.pufferfish) {
+             var puffer = this.visuals.pufferfish.object3D;
+             var pufferBreath = 1 + Math.sin(t * 2.4) * 0.025;
+             var pufferFloat = Math.sin(t * 1.8) * 0.012;
+             puffer.position.copy(this.visualBasePositions.pufferfish);
+             puffer.position.y += pufferFloat;
+             puffer.scale.set(
+                this.visualScales.pufferfishNormal.x * pufferBreath,
+                this.visualScales.pufferfishNormal.y * (1 + Math.sin(t * 2.4 + 0.8) * 0.018),
+                this.visualScales.pufferfishNormal.z * pufferBreath
+             );
+          }
+
+          if (this.mode === 'octopus' && this.octopusState === 'safe' && this.visuals.octopus) {
+             var octopus = this.visuals.octopus.object3D;
+             octopus.position.copy(this.visualBasePositions.octopus);
+             octopus.position.y += Math.sin(t * 1.7) * 0.018;
+             octopus.scale.copy(this.visualScales.octopusNormal);
+             octopus.rotation.y = this.placementFacingYaw + this.visualYawOffsets.octopus + Math.sin(t * 1.25) * 0.06;
+          }
+
+          if (this.mode === 'hedgehog' && this.hedgehogState === 'idle' && this.visuals.hedgehog) {
+             var hedgehog = this.visuals.hedgehog.object3D;
+             var hedgehogBreath = 1 + Math.sin(t * 2.0) * 0.012;
+             hedgehog.position.copy(this.visualBasePositions.hedgehog);
+             hedgehog.position.y += Math.sin(t * 1.5) * 0.006;
+             hedgehog.scale.set(
+                this.visualScales.hedgehogNormal.x * hedgehogBreath,
+                this.visualScales.hedgehogNormal.y * (1 + Math.sin(t * 2.0 + 0.6) * 0.01),
+                this.visualScales.hedgehogNormal.z * hedgehogBreath
+             );
           }
         },
         
