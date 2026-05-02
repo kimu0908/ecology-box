@@ -357,7 +357,8 @@
 
       #reset-placement,
       #return-home,
-      #collection-open {
+      #collection-open,
+      #sound-toggle {
         pointer-events: auto;
         min-height: 48px;
         background: rgba(255, 253, 246, 0.7); color: #4f806a;
@@ -370,6 +371,25 @@
       #reset-placement::before { content: "↻ "; font-size: 1.1em; }
       #return-home::before { content: "⌂ "; font-size: 1.1em; }
       #collection-open::before { content: "◇ "; font-size: 1.1em; }
+      #sound-toggle::before { content: "♪ "; font-size: 1.1em; }
+      .welcome-sound-toggle {
+        position: absolute;
+        top: 22px;
+        right: 22px;
+        z-index: 3;
+        pointer-events: auto;
+        min-height: 46px;
+        border: 1px solid rgba(255,255,255,0.86);
+        border-radius: 999px;
+        background: rgba(255, 253, 246, 0.72);
+        color: #4f806a;
+        padding: 9px 16px;
+        font-size: 16px;
+        font-weight: 850;
+        box-shadow: 0 12px 28px rgba(52, 84, 77, 0.15), inset 0 1px 0 rgba(255,255,255,0.9);
+        backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      }
+      .welcome-sound-toggle::before { content: "♪ "; }
 
       .mode-btn {
         pointer-events: auto;
@@ -577,7 +597,8 @@
         }
         #reset-placement,
         #return-home,
-        #collection-open {
+        #collection-open,
+        #sound-toggle {
           width: 142px;
           height: 46px;
           min-height: 46px;
@@ -650,6 +671,13 @@
         #collection-open {
           min-height: 42px;
           padding: 8px 13px;
+        }
+        .welcome-sound-toggle {
+          top: 16px;
+          right: 14px;
+          min-height: 42px;
+          padding: 8px 13px;
+          font-size: 14px;
         }
         #instruction-text {
           bottom: 144px;
@@ -724,6 +752,8 @@
           this.collectionOpenEl = document.getElementById('collection-open');
           this.collectionOverlayEl = document.getElementById('collection-overlay');
           this.collectionCloseEl = document.getElementById('collection-close');
+          this.soundToggleEl = document.getElementById('sound-toggle');
+          this.soundToggleEls = Array.from(document.querySelectorAll('.sound-toggle'));
           this.placementDebugEl = document.getElementById('placement-debug');
           this.placementDebugBodyEl = document.getElementById('placement-debug-body');
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
@@ -760,6 +790,14 @@
           };
           this.collectionStorageKey = 'boundaryTerrariumCollection';
           this.collectionProgress = this.loadCollectionProgress();
+          this.soundEnabled = false;
+          this.sfxMap = {};
+          this.lastSfxTime = {};
+          this.activeSfx = [];
+          this.lastSpokenHint = '';
+          this.currentVoice = null;
+          this.bgmAudio = null;
+          this.initAudio();
 
           this.models = {
             pufferfish: document.getElementById('pufferfish'),
@@ -794,10 +832,16 @@
 
           this.modeSelector.addEventListener('beforexrselect', e => e.preventDefault());
           document.getElementById('reset-placement').addEventListener('beforexrselect', e => e.preventDefault());
-          document.getElementById('reset-placement').addEventListener('click', () => this.resetPlacement());
+          document.getElementById('reset-placement').addEventListener('click', () => {
+             this.playSfx('uiTap');
+             this.resetPlacement();
+          });
           if (this.returnHomeEl) {
              this.returnHomeEl.addEventListener('beforexrselect', e => e.preventDefault());
-             this.returnHomeEl.addEventListener('click', () => this.returnToHome());
+             this.returnHomeEl.addEventListener('click', () => {
+                this.playSfx('uiTap');
+                this.returnToHome();
+             });
           }
           if (this.placementDebugToggleEl) {
              this.placementDebugToggleEl.addEventListener('beforexrselect', e => e.preventDefault());
@@ -808,7 +852,10 @@
           }
           if (this.mentorCardCloseEl) {
              this.mentorCardCloseEl.addEventListener('beforexrselect', e => e.preventDefault());
-             this.mentorCardCloseEl.addEventListener('click', () => this.hideLearningCard());
+             this.mentorCardCloseEl.addEventListener('click', () => {
+                this.playSfx('uiClose');
+                this.hideLearningCard();
+             });
           }
           if (this.collectionOpenEl) {
              this.collectionOpenEl.addEventListener('beforexrselect', e => e.preventDefault());
@@ -818,12 +865,18 @@
              this.collectionCloseEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.collectionCloseEl.addEventListener('click', () => this.closeCollection());
           }
+          this.soundToggleEls.forEach(button => {
+             button.addEventListener('beforexrselect', e => e.preventDefault());
+             button.addEventListener('click', () => this.toggleSound());
+          });
+          this.updateSoundToggle();
           this.updateCollectionUI();
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.setStartButtonLoading();
              this.watchAppReady();
              this.startExperienceEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.startExperienceEl.addEventListener('click', () => {
+                this.playSfx('uiTap');
                 this.tryStartARFromWelcome();
              });
           }
@@ -831,6 +884,7 @@
              this.isStartingAR = false;
              if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
              this.arStartFallbackTimer = null;
+             this.stopBgm();
              if (this.startExperienceEl) {
                 this.startExperienceEl.disabled = false;
                 this.startExperienceEl.innerText = '开始体验';
@@ -839,6 +893,7 @@
           });
 
           document.getElementById('btn-octopus').addEventListener('click', () => {
+             this.playSfx('uiTap');
              if (!this.motionListening) {
                 if (typeof DeviceMotionEvent === 'undefined') {
                     this.motionPermissionState = 'unsupported';
@@ -863,8 +918,14 @@
              this.switchMode('octopus');
           });
 
-          document.getElementById('btn-pufferfish').addEventListener('click', () => this.switchMode('pufferfish'));
-          document.getElementById('btn-hedgehog').addEventListener('click', () => this.switchMode('hedgehog'));
+          document.getElementById('btn-pufferfish').addEventListener('click', () => {
+             this.playSfx('uiTap');
+             this.switchMode('pufferfish');
+          });
+          document.getElementById('btn-hedgehog').addEventListener('click', () => {
+             this.playSfx('uiTap');
+             this.switchMode('hedgehog');
+          });
 
           // [\u4fee\u6539\u70b9] \u76d1\u542c\u653e\u7f6e\u6210\u529f\u4e8b\u4ef6\uff0c\u843d\u5730\u77ac\u95f4\u5f3a\u5236\uff08\u66b4\u529b\uff09\u8986\u5199 UI \u6587\u5b57
           this.el.addEventListener('monster-spawned', (e) => {
@@ -955,6 +1016,143 @@
                  }
              }
              this.lastAcc = { x: acc.x, y: acc.y, z: acc.z };
+        },
+
+        initAudio: function() {
+           var path = 'assets/audio/';
+           var files = {
+              uiTap: 'ui-tap.mp3',
+              uiOpen: 'ui-open.mp3',
+              uiClose: 'ui-close.mp3',
+              uiSuccess: 'ui-success.mp3',
+              uiErrorSoft: 'ui-error-soft.mp3',
+              pufferSquish: 'puffer-squish.mp3',
+              pufferRecover: 'puffer-recover.mp3',
+              octopusSticky: 'octopus-sticky.mp3',
+              octopusReady: 'octopus-ready.mp3',
+              octopusRelease: 'octopus-release.mp3',
+              hedgehogAlarm: 'hedgehog-alarm.mp3',
+              hedgehogCalm: 'hedgehog-calm.mp3',
+              hedgehogSlowSuccess: 'hedgehog-slow-success.mp3',
+              learningCardOpen: 'learning-card-open.mp3',
+              collectionUnlock: 'collection-unlock.mp3'
+           };
+           Object.keys(files).forEach(name => {
+              try {
+                 var audio = new Audio(path + files[name]);
+                 audio.preload = 'auto';
+                 this.sfxMap[name] = audio;
+              } catch (error) {
+                 console.warn('Audio init failed:', name, error);
+              }
+           });
+           try {
+              this.bgmAudio = new Audio(path + 'start-bgm.mp3');
+              this.bgmAudio.loop = true;
+              this.bgmAudio.preload = 'auto';
+              this.bgmAudio.volume = 0.42;
+           } catch (error) {
+              console.warn('BGM init failed:', error);
+           }
+        },
+
+        updateSoundToggle: function() {
+           if (!this.soundToggleEls) return;
+           this.soundToggleEls.forEach(button => {
+              button.innerText = this.soundEnabled ? '声音：开' : '声音：关';
+           });
+        },
+
+        toggleSound: function() {
+           this.soundEnabled = !this.soundEnabled;
+           this.updateSoundToggle();
+           if (this.soundEnabled) {
+              this.playSfx('uiTap');
+              if (this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden')) this.playBgm();
+           } else {
+              this.stopAllAudio();
+           }
+        },
+
+        playSfx: function(name, cooldown) {
+           if (!this.soundEnabled || !this.sfxMap[name]) return;
+           var now = performance.now();
+           var wait = cooldown || 650;
+           if (this.lastSfxTime[name] && now - this.lastSfxTime[name] < wait) return;
+           this.lastSfxTime[name] = now;
+           try {
+              var audio = this.sfxMap[name].cloneNode(true);
+              audio.volume = 0.88;
+              this.activeSfx.push(audio);
+              audio.addEventListener('ended', () => {
+                 this.activeSfx = this.activeSfx.filter(item => item !== audio);
+              });
+              audio.play().catch(() => {});
+           } catch (error) {
+              console.warn('SFX play failed:', name, error);
+           }
+        },
+
+        playBgm: function() {
+           if (!this.soundEnabled || !this.bgmAudio) return;
+           try {
+              this.bgmAudio.currentTime = 0;
+              this.bgmAudio.play().catch(() => {});
+           } catch (error) {
+              console.warn('BGM play failed:', error);
+           }
+        },
+
+        stopBgm: function() {
+           if (!this.bgmAudio) return;
+           try {
+              this.bgmAudio.pause();
+              this.bgmAudio.currentTime = 0;
+           } catch (error) {
+              console.warn('BGM stop failed:', error);
+           }
+        },
+
+        stopVoice: function() {
+           if (!window.speechSynthesis) return;
+           try {
+              window.speechSynthesis.cancel();
+              this.currentVoice = null;
+           } catch (error) {
+              console.warn('Voice stop failed:', error);
+           }
+        },
+
+        stopAllAudio: function() {
+           this.stopBgm();
+           this.stopVoice();
+           if (this.activeSfx) {
+              this.activeSfx.forEach(audio => {
+                 try {
+                    audio.pause();
+                    audio.currentTime = 0;
+                 } catch (error) {}
+              });
+              this.activeSfx = [];
+           }
+        },
+
+        speakHint: function(text) {
+           if (!this.soundEnabled || !text || this.lastSpokenHint === text) return;
+           if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+           this.lastSpokenHint = text;
+           this.stopVoice();
+           try {
+              var utterance = new SpeechSynthesisUtterance(text);
+              utterance.lang = 'zh-TW';
+              utterance.rate = 0.9;
+              utterance.pitch = 1.05;
+              utterance.volume = 1;
+              this.currentVoice = utterance;
+              window.speechSynthesis.speak(utterance);
+           } catch (error) {
+              console.warn('Voice speak failed:', error);
+           }
         },
 
         setStartButtonLoading: function() {
@@ -1159,6 +1357,7 @@
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
+                    this.playSfx('pufferSquish');
                     this.updateHint('哎呀，你太近啦，我被挤扁了！', { minDuration: 1800, priority: 'important' });
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = setTimeout(() => {
@@ -1171,6 +1370,7 @@
                     this.pufferfishHintState = 'recovering';
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = null;
+                    this.playSfx('pufferRecover');
                     this.updateHint('这样刚刚好，我们都舒服多了。');
                     this.showLearningCard('pufferfish');
                     if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
@@ -1213,6 +1413,7 @@
                   // 1. 刚性防御：冲破阈值，触发报错机制
                   this.hedgehogState = 'alarm';
                   this.hedgehogSlowApproachPraised = false;
+                  this.playSfx('hedgehogAlarm');
                   
                   if (this.hedgehogTimer) {
                       clearTimeout(this.hedgehogTimer);
@@ -1229,6 +1430,7 @@
               } 
               else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
+                  this.playSfx('hedgehogSlowSuccess');
                   this.updateHint('你靠近得很温柔，我觉得安心多了。');
                   this.showLearningCard('hedgehog');
               }
@@ -1246,6 +1448,7 @@
                           if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting') {
                               this.hedgehogState = 'friend';
                               this.restoreHedgehogMaterial();
+                              this.playSfx('hedgehogCalm');
                               this.updateHint('慢慢靠近，真的会让人更放心。');
                               this.showLearningCard('hedgehog');
                               if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
@@ -1316,6 +1519,7 @@
             this.currentHint = message;
             this.instructionEl.innerText = message;
             if (opts.minDuration) this.hintLockedUntil = now + opts.minDuration;
+            this.speakHint(message);
         },
 
         showLearningCard: function(type) {
@@ -1338,6 +1542,7 @@
             var lesson = lessons[type];
             if (!lesson || !this.mentorCardEl) return;
             this.completedLessons[type] = true;
+            this.playSfx('learningCardOpen');
             if (this.mentorCardTitleEl) this.mentorCardTitleEl.innerText = lesson.title;
             if (this.mentorCardBodyEl) this.mentorCardBodyEl.innerText = lesson.body;
             this.mentorCardEl.classList.remove('hidden');
@@ -1385,6 +1590,7 @@
             this.collectionProgress[type] = true;
             this.saveCollectionProgress();
             this.updateCollectionUI();
+            this.playSfx('collectionUnlock');
         },
 
         updateCollectionUI: function() {
@@ -1400,11 +1606,13 @@
         },
 
         openCollection: function() {
+            this.playSfx('uiOpen');
             this.updateCollectionUI();
             if (this.collectionOverlayEl) this.collectionOverlayEl.classList.remove('hidden');
         },
 
         closeCollection: function() {
+            this.playSfx('uiClose');
             if (this.collectionOverlayEl) this.collectionOverlayEl.classList.add('hidden');
         },
 
@@ -1489,6 +1697,7 @@
             this.isOctopusAttached = true;
             if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
             this.showOctopusFilter();
+            this.playSfx('octopusSticky');
             this.setOctopusHintState('triggered');
             this.octopusHintTimer = setTimeout(() => {
                 if (this.mode === 'octopus' && this.octopusState === 'triggered') this.enterOctopusStuckTooClose();
@@ -1508,6 +1717,7 @@
             this.octopusState = 'readyToShake';
             this.isOctopusAttached = true;
             if (this.models.octopus) this.models.octopus.setAttribute('visible', 'false');
+            this.playSfx('octopusReady');
             if (this.mode === 'octopus') this.setOctopusHintState('readyToShake');
         },
 
@@ -1517,6 +1727,7 @@
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.hideOctopusFilter();
+            this.playSfx('octopusRelease');
             if (this.models.octopus && this.mode === 'octopus' && this.isSpawned) {
                 this.models.octopus.setAttribute('visible', 'true');
             }
@@ -1543,6 +1754,7 @@
             this.isOctopusAttached = false;
             this.octopusCooldown = 0;
             this.clearHintTimers(true);
+            this.stopVoice();
             this.completedLessons = {
                 pufferfish: false,
                 octopus: false,
@@ -1578,6 +1790,7 @@
             }
             if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
             this.updateHint('找一块平坦的地面，把小动物放下来。');
+            if (this.soundEnabled) this.playBgm();
         },
 
         showOctopusFilter: function() {
@@ -1793,6 +2006,7 @@
     <!-- DOM Overlay系统（UI面板） -->
     <div id="ar-ui-layer">
       <div id="welcome-overlay">
+        <button id="welcome-sound-toggle" class="sound-toggle welcome-sound-toggle" type="button">声音：关</button>
         <section class="welcome-shell" aria-label="邊界生態箱開始畫面">
           <div class="welcome-copy">
             <div class="welcome-brand">
@@ -1836,6 +2050,7 @@
         <button id="reset-placement">重新放置</button>
         <button id="return-home">返回首页</button>
         <button id="collection-open">边界图鉴</button>
+        <button id="sound-toggle" class="sound-toggle">声音：关</button>
       </div>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
