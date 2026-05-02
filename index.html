@@ -101,6 +101,15 @@
       #start-experience::after {
         content: " →"; font-weight: 800;
       }
+      #start-experience:disabled {
+        cursor: wait;
+        opacity: 0.68;
+        filter: saturate(0.78);
+        box-shadow: 0 10px 24px rgba(96, 150, 135, 0.18), inset 0 2px 0 rgba(255,255,255,0.45);
+      }
+      #start-experience:disabled::after {
+        content: "";
+      }
       .welcome-entry-note {
         min-height: 24px;
         margin-top: 12px;
@@ -491,8 +500,10 @@
           this.startExperienceEl = document.getElementById('start-experience');
           this.welcomeEntryNoteEl = document.querySelector('.welcome-entry-note');
           this.returnHomeEl = document.getElementById('return-home');
+          this.isAppReady = false;
           this.isStartingAR = false;
           this.arStartFallbackTimer = null;
+          this.appReadyFallbackTimer = null;
           this.placementDebugEnabled = true;
           this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
@@ -557,6 +568,8 @@
              });
           }
           if (this.startExperienceEl && this.welcomeOverlayEl) {
+             this.setStartButtonLoading();
+             this.watchAppReady();
              this.startExperienceEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.startExperienceEl.addEventListener('click', () => {
                 this.tryStartARFromWelcome();
@@ -692,8 +705,52 @@
              this.lastAcc = { x: acc.x, y: acc.y, z: acc.z };
         },
 
+        setStartButtonLoading: function() {
+           if (!this.startExperienceEl) return;
+           this.startExperienceEl.disabled = true;
+           this.startExperienceEl.innerText = '加载中…';
+           if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+        },
+
+        markAppReady: function() {
+           if (this.isAppReady) return;
+           this.isAppReady = true;
+           if (this.appReadyFallbackTimer) clearTimeout(this.appReadyFallbackTimer);
+           this.appReadyFallbackTimer = null;
+           if (this.startExperienceEl) {
+              this.startExperienceEl.disabled = false;
+              this.startExperienceEl.innerText = '开始体验';
+           }
+           if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+        },
+
+        watchAppReady: function() {
+           var scene = this.el.sceneEl || this.el;
+           var assets = scene.querySelector('a-assets');
+           var ready = () => {
+              var sceneReady = !scene || scene.hasLoaded || (scene.is && scene.is('loaded'));
+              var assetsReady = !assets || assets.hasLoaded;
+              if (sceneReady && assetsReady) this.markAppReady();
+           };
+
+           if (scene) scene.addEventListener('loaded', ready);
+           if (assets) assets.addEventListener('loaded', ready);
+           ready();
+
+           this.appReadyFallbackTimer = setTimeout(() => {
+              if (this.isAppReady) return;
+              if (this.startExperienceEl) this.startExperienceEl.innerText = '继续等待…';
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '资源加载较慢，请稍等或刷新页面。';
+           }, 8000);
+        },
+
         tryStartARFromWelcome: function() {
            if (this.isStartingAR) return;
+           if (!this.isAppReady) {
+              this.setStartButtonLoading();
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '加载中，请稍等…';
+              return;
+           }
            var scene = this.el.sceneEl || this.el;
            this.isStartingAR = true;
            if (this.startExperienceEl) {
@@ -1163,8 +1220,8 @@
             this.arStartFallbackTimer = null;
             if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
             if (this.startExperienceEl) {
-                this.startExperienceEl.disabled = false;
-                this.startExperienceEl.innerText = '开始体验';
+                this.startExperienceEl.disabled = !this.isAppReady;
+                this.startExperienceEl.innerText = this.isAppReady ? '开始体验' : '加载中…';
             }
             if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
             this.updateHint('找一块平坦的地面，把小动物放下来。');
@@ -1392,7 +1449,7 @@
             <h1>邊界生態箱</h1>
             <h2>The Boundary Terrarium</h2>
             <p>探索小动物喜欢的距离，<br>学习慢慢靠近与尊重空间。</p>
-            <button id="start-experience" type="button">开始体验</button>
+            <button id="start-experience" type="button" disabled>加载中…</button>
             <div class="welcome-entry-note" aria-live="polite"></div>
           </div>
           <div class="welcome-terrarium" aria-hidden="true">
