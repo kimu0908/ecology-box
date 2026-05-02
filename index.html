@@ -491,6 +491,8 @@
           this.startExperienceEl = document.getElementById('start-experience');
           this.welcomeEntryNoteEl = document.querySelector('.welcome-entry-note');
           this.returnHomeEl = document.getElementById('return-home');
+          this.isStartingAR = false;
+          this.arStartFallbackTimer = null;
           this.placementDebugEnabled = true;
           this.placementDebugExpanded = false;
           this.lastDebugUpdate = 0;
@@ -557,12 +559,17 @@
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.startExperienceEl.addEventListener('beforexrselect', e => e.preventDefault());
              this.startExperienceEl.addEventListener('click', () => {
-                this.startExperienceEl.disabled = true;
-                if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
                 this.tryStartARFromWelcome();
              });
           }
           this.el.sceneEl.addEventListener('enter-vr', () => {
+             this.isStartingAR = false;
+             if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
+             this.arStartFallbackTimer = null;
+             if (this.startExperienceEl) {
+                this.startExperienceEl.disabled = false;
+                this.startExperienceEl.innerText = '开始体验';
+             }
              if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
           });
 
@@ -686,16 +693,40 @@
         },
 
         tryStartARFromWelcome: function() {
+           if (this.isStartingAR) return;
            var scene = this.el.sceneEl || this.el;
+           this.isStartingAR = true;
+           if (this.startExperienceEl) {
+              this.startExperienceEl.disabled = true;
+              this.startExperienceEl.innerText = '正在启动 AR…';
+           }
+           if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
            var finish = () => {
+              this.isStartingAR = false;
+              if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
+              this.arStartFallbackTimer = null;
               if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
-              if (this.startExperienceEl) this.startExperienceEl.disabled = false;
+              if (this.startExperienceEl) {
+                 this.startExperienceEl.disabled = false;
+                 this.startExperienceEl.innerText = '开始体验';
+              }
            };
            var fallback = () => {
-              if (this.startExperienceEl) this.startExperienceEl.disabled = false;
-              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '请点击 AR 按钮进入体验。';
-              this.updateHint('请点击 AR 按钮进入体验。');
+              this.isStartingAR = false;
+              if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
+              this.arStartFallbackTimer = null;
+              if (this.startExperienceEl) {
+                 this.startExperienceEl.disabled = false;
+                 this.startExperienceEl.innerText = '开始体验';
+              }
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '如果没有自动进入，请点击 AR 按钮进入体验。';
+              this.updateHint('如果没有自动进入，请点击 AR 按钮进入体验。');
            };
+
+           this.arStartFallbackTimer = setTimeout(() => {
+              if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) finish();
+              else fallback();
+           }, 2000);
 
            try {
               if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
@@ -711,7 +742,6 @@
               Promise.resolve(result).then(() => {
                  setTimeout(() => {
                     if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) finish();
-                    else fallback();
                  }, 300);
               }).catch(fallback);
            } catch (error) {
@@ -1128,8 +1158,14 @@
         returnToHome: function() {
             this.resetPlacement();
             this.currentHint = '';
+            this.isStartingAR = false;
+            if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
+            this.arStartFallbackTimer = null;
             if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
-            if (this.startExperienceEl) this.startExperienceEl.disabled = false;
+            if (this.startExperienceEl) {
+                this.startExperienceEl.disabled = false;
+                this.startExperienceEl.innerText = '开始体验';
+            }
             if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
             this.updateHint('找一块平坦的地面，把小动物放下来。');
         },
