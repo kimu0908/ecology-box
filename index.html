@@ -2082,20 +2082,60 @@
           this.groundYOffset = -0.08;
           this.hasPlaced = false; // [修复一] 放置锁，防止幽灵光圈持续跟随
           this.lastHintMessage = '';
+          this.lastReticleStatusTime = 0;
+          this.reticleStatus = '';
+          this.refSpaceType = '';
 
           this.el.sceneEl.addEventListener('enter-vr', () => {
             if (!this.el.sceneEl.is('ar-mode')) return;
             var session = this.el.sceneEl.renderer.xr.getSession();
+            this.hasPlaced = false;
+            this.lastHintMessage = '';
+            this.lastReticleStatusTime = 0;
+            this.reticleStatus = '';
+            this.xrHitTestSource = null;
+            this.viewerSpace = null;
+            this.refSpace = null;
+            this.refSpaceType = '';
+            this.el.setAttribute('visible', 'false');
             
             session.requestReferenceSpace('viewer').then((space) => {
               this.viewerSpace = space;
-              session.requestHitTestSource({ space: this.viewerSpace }).then((hitTestSource) => {
-                this.xrHitTestSource = hitTestSource;
-              });
+              console.log('[AR] viewerSpace ready');
+              return session.requestHitTestSource({ space: this.viewerSpace });
+            }).then((hitTestSource) => {
+              this.xrHitTestSource = hitTestSource;
+              console.log('[AR] hitTestSource ready');
+            }).catch((err) => {
+              console.warn('[AR] hitTestSource failed', err);
+              this.emitHint('手机无法启动地面识别，请确认浏览器支持 WebXR AR。');
             });
 
             session.requestReferenceSpace('local-floor').then((space) => {
               this.refSpace = space;
+              this.refSpaceType = 'local-floor';
+              console.log('[AR] refSpace ready: local-floor');
+            }).catch((err) => {
+              console.warn('[AR] local-floor failed, fallback to local', err);
+              return session.requestReferenceSpace('local');
+            }).then((space) => {
+              if (!this.refSpace && space) {
+                this.refSpace = space;
+                this.refSpaceType = 'local';
+                console.log('[AR] refSpace ready: local');
+              }
+            }).catch((err) => {
+              console.warn('[AR] refSpace failed', err);
+              this.emitHint('手机暂时无法建立 AR 地面坐标，请重新进入 AR 或换个浏览器。');
+            });
+
+            session.addEventListener('end', () => {
+              this.hasPlaced = false;
+              this.xrHitTestSource = null;
+              this.viewerSpace = null;
+              this.refSpace = null;
+              this.refSpaceType = '';
+              this.el.setAttribute('visible', 'false');
             });
 
             session.addEventListener('select', (event) => {
@@ -2120,13 +2160,33 @@
           this.el.sceneEl.addEventListener('placement-reset', () => {
             this.hasPlaced = false;
             this.lastHintMessage = '';
+            this.lastReticleStatusTime = 0;
+            this.reticleStatus = '';
             this.el.setAttribute('visible', 'true');
+          });
+
+          this.el.sceneEl.addEventListener('exit-vr', () => {
+            this.hasPlaced = false;
+            this.xrHitTestSource = null;
+            this.viewerSpace = null;
+            this.refSpace = null;
+            this.refSpaceType = '';
+            this.lastHintMessage = '';
+            this.reticleStatus = '';
+            this.el.setAttribute('visible', 'false');
           });
         },
         emitHint: function(message) {
           if (this.lastHintMessage === message) return;
           this.lastHintMessage = message;
           this.el.sceneEl.emit('hint-message', { message: message });
+        },
+        emitStatusHint: function(status, message) {
+          var now = performance.now();
+          if (this.reticleStatus === status && now - this.lastReticleStatusTime < 1000) return;
+          this.reticleStatus = status;
+          this.lastReticleStatusTime = now;
+          this.emitHint(message);
         },
         tick: function () {
           if (this.hasPlaced) return; // [修复一] 已放置，停止光圈更新
@@ -2137,8 +2197,17 @@
           var xrHitTestSource = this.xrHitTestSource;
           var refSpace = this.refSpace;
 
-          // [\u4fee\u6539\u70b9] \u83b7\u53d6 UI \u6587\u672c\u5143\u7d20
-          var instructionEl = document.getElementById('instruction-text');
+          if (!xrHitTestSource) {
+            this.el.setAttribute('visible', 'false');
+            this.emitStatusHint('hit-test-loading', '正在启动地面识别，请缓慢移动手机。');
+            return;
+          }
+
+          if (!refSpace) {
+            this.el.setAttribute('visible', 'false');
+            this.emitStatusHint('ref-space-loading', '正在建立 AR 坐标，请稍等。');
+            return;
+          }
 
           if (xrHitTestSource && refSpace) {
             var hitTestResults = frame.getHitTestResults(xrHitTestSource);
@@ -2148,11 +2217,11 @@
               this.el.setAttribute('visible', 'true');
               this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
               // [\u65b0\u589e] \u6293\u5230\u5730\u9762\u65f6\uff0c\u7ed9\u4e88\u5f3a\u70c8\u7684\u7eff\u8272\u89c6\u89c9\u786e\u8ba4
-              if (!this.hasPlaced) this.emitHint('找到了地面，点一下把小动物放下来。');
+              if (!this.hasPlaced) this.emitStatusHint('hit-found', '找到了地面，点一下把小动物放下来。');
             } else {
               this.el.setAttribute('visible', 'false');
               // [\u65b0\u589e] \u4e22\u5931\u5e73\u9762\u65f6\u5f15\u5bfc\u7528\u6237\u79fb\u52a8\u624b\u673a\u5bfb\u627e\u7279\u5f81\u70b9
-              if (!this.hasPlaced) this.emitHint('找一块平坦的地面，把小动物放下来。');
+              if (!this.hasPlaced) this.emitStatusHint('hit-searching', '找一块平坦的地面，把小动物放下来。');
             }
           }
         }
@@ -2271,7 +2340,7 @@
     </div>
 
     <!-- 并入 ar-game-manager -->
-    <a-scene ar-game-manager="anchor: #monster-anchor" webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay; overlayElement: #ar-ui-layer;">
+    <a-scene ar-game-manager="anchor: #monster-anchor" webxr="requiredFeatures: hit-test; optionalFeatures: local-floor, dom-overlay; overlayElement: #ar-ui-layer;">
       <a-assets>
         <a-asset-item id="asset-pufferfish" src="assets/pufferfish.glb"></a-asset-item>
         <a-asset-item id="asset-octopus" src="assets/octopus.glb"></a-asset-item>
@@ -2282,8 +2351,8 @@
 
       <!-- [修改点 2] 增大光圈、荧光绿色、加入呼吸脉冲动画，大幅提升可见度 -->
       <a-entity id="reticle"
-        geometry="primitive: ring; radiusInner: 0.15; radiusOuter: 0.2"
-        material="color: #00FF00; shader: flat; opacity: 0.9; transparent: true"
+        geometry="primitive: ring; radiusInner: 0.15; radiusOuter: 0.22"
+        material="color: #00FF00; shader: flat; opacity: 0.9; transparent: true; side: double"
         rotation="-90 0 0"
         visible="false"
         ar-hit-test-placer="target: #monster-anchor"
