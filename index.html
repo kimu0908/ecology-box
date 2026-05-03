@@ -1053,6 +1053,8 @@
               try {
                  var audio = new Audio(path + files[name]);
                  audio.preload = 'auto';
+                 audio.addEventListener('canplaythrough', () => console.log('[SFX ready]', name, audio.src));
+                 audio.addEventListener('error', () => console.warn('[SFX load error]', name, audio.src));
                  this.sfxMap[name] = audio;
               } catch (error) {
                  console.warn('Audio init failed:', name, error);
@@ -1063,6 +1065,8 @@
               this.bgmAudio.loop = true;
               this.bgmAudio.preload = 'auto';
               this.bgmAudio.volume = 0.42;
+              this.bgmAudio.addEventListener('canplaythrough', () => console.log('[BGM ready] start-bgm.mp3'));
+              this.bgmAudio.addEventListener('error', () => console.warn('[BGM load error] start-bgm.mp3'));
            } catch (error) {
               console.warn('BGM init failed:', error);
            }
@@ -1078,16 +1082,23 @@
         toggleSound: function() {
            this.soundEnabled = !this.soundEnabled;
            this.updateSoundToggle();
+           var onWelcome = this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden');
            if (this.soundEnabled) {
-              this.playSfx('uiTap');
-              if (this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden')) this.playBgm();
+              if (onWelcome) {
+                 this.playBgm();
+              } else {
+                 this.playSfx('uiTap');
+              }
            } else {
               this.stopAllAudio();
            }
         },
 
         playSfx: function(name, cooldown) {
-           if (!this.soundEnabled) return;
+           if (!this.soundEnabled) {
+              console.log('[SFX skipped: sound off]', name);
+              return;
+           }
            if (!this.sfxMap[name]) {
               console.warn('[SFX missing]', name);
               return;
@@ -1105,7 +1116,7 @@
               audio.addEventListener('ended', () => {
                  this.activeSfx = this.activeSfx.filter(item => item !== audio);
               });
-              console.log('[SFX play]', name);
+              console.log('[SFX play]', name, this.sfxMap[name].src);
               audio.play().catch(error => console.warn('[SFX blocked]', name, error));
            } catch (error) {
               console.warn('SFX play failed:', name, error);
@@ -1113,10 +1124,18 @@
         },
 
         playBgm: function() {
-           if (!this.soundEnabled || !this.bgmAudio) return;
+           if (!this.soundEnabled) {
+              console.log('[BGM skipped: sound off]');
+              return;
+           }
+           if (!this.bgmAudio) {
+              console.warn('[BGM missing] start-bgm.mp3');
+              return;
+           }
            try {
               this.bgmAudio.currentTime = 0;
-              this.bgmAudio.play().catch(() => {});
+              console.log('[BGM play] assets/audio/start-bgm.mp3');
+              this.bgmAudio.play().catch(error => console.warn('[BGM blocked]', error));
            } catch (error) {
               console.warn('BGM play failed:', error);
            }
@@ -1540,7 +1559,6 @@
             this.hedgehogTimer = null;
             console.log('[SFX event] hedgehog alarm');
             this.playSfx('hedgehogAlarm');
-            this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', opacity: 0.88, wireframe: false });
             this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true });
             if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
             this.hedgehogHintTimer = setTimeout(() => {
