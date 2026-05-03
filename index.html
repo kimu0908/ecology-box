@@ -290,6 +290,18 @@
         box-shadow: 0 18px 38px rgba(51, 88, 78, 0.16), inset 0 1px 0 rgba(255,255,255,0.92);
         backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
       }
+      #instruction-text.warning {
+        background: rgba(255, 238, 232, 0.88);
+        color: #8f3b2f;
+        border-color: rgba(255, 120, 100, 0.9);
+        box-shadow: 0 18px 38px rgba(170, 60, 40, 0.22), inset 0 1px 0 rgba(255,255,255,0.92);
+      }
+      #instruction-text.success {
+        background: rgba(235, 250, 240, 0.88);
+        color: #2f6f55;
+        border-color: rgba(106, 205, 145, 0.82);
+        box-shadow: 0 18px 38px rgba(58, 135, 92, 0.18), inset 0 1px 0 rgba(255,255,255,0.92);
+      }
       #mentor-card {
         position: absolute;
         right: 22px;
@@ -741,6 +753,7 @@
           this.hedgehogTimer = null;
           this.hedgehogWaitStartedAt = 0;
           this.hedgehogInteractionArmed = false;
+          this.hedgehogAlarmHintState = 'idle';
           this.hedgehogSlowApproachPraised = false;
           this.hedgehogOriginalMaterials = []; // 保存原始材质以便恢复
 
@@ -1385,6 +1398,7 @@
              this.hedgehogState = 'idle';
              if (newMode === 'hedgehog') {
                 this.hedgehogInteractionArmed = false;
+                this.hedgehogAlarmHintState = 'idle';
                 this.hedgehogSlowApproachPraised = false;
              }
              if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
@@ -1517,7 +1531,8 @@
                   if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
                   this.hedgehogTimer = null;
                   this.hedgehogState = 'alarm';
-                  this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true });
+                  this.hedgehogAlarmHintState = 'retreat';
+                  this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
               }
 
               if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && !this.hedgehogInteractionArmed) {
@@ -1530,11 +1545,15 @@
                   this.hedgehogSlowApproachPraised = true;
                   console.log('[SFX event] hedgehog slow success');
                   this.playSfx('hedgehogSlowSuccess');
-                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
                   this.showLearningCard('hedgehog');
               }
               else if (this.hedgehogState === 'alarm' && surfaceDistance >= 0.8) {
                   this.enterHedgehogWaiting();
+              }
+              else if (this.hedgehogState === 'alarm' && surfaceDistance < 0.8 && this.hedgehogAlarmHintState === 'alarm' && performance.now() >= this.hintLockedUntil) {
+                  this.hedgehogAlarmHintState = 'retreat';
+                  this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
               }
               break;
           }
@@ -1584,13 +1603,25 @@
           if (this.models[mode]) this.models[mode].setAttribute('visible', 'true');
         },
 
+        setHintTone: function(tone) {
+            if (!this.instructionEl) return;
+            this.instructionEl.classList.remove('warning', 'success');
+            if (tone === 'warning' || tone === 'success') this.instructionEl.classList.add(tone);
+        },
+
         updateHint: function(message, options) {
             var now = performance.now();
             var opts = options || {};
             if (this.hintLockedUntil > now && opts.priority !== 'important' && opts.force !== true) return;
-            if (!this.instructionEl || this.currentHint === message) return;
+            if (!this.instructionEl) return;
+            var tone = opts.tone || 'normal';
+            if (this.currentHint === message) {
+               this.setHintTone(tone);
+               return;
+            }
             this.currentHint = message;
             this.instructionEl.innerText = message;
+            this.setHintTone(tone);
             var lockMs = opts.lockMs || opts.minDuration || 0;
             if (lockMs) this.hintLockedUntil = now + lockMs;
             if (opts.speak === true) this.speakHint(message);
@@ -1599,26 +1630,24 @@
         enterHedgehogAlarm: function() {
             if (this.hedgehogState === 'alarm' || this.hedgehogState === 'waiting' || this.hedgehogState === 'friend') return;
             this.hedgehogState = 'alarm';
+            this.hedgehogAlarmHintState = 'alarm';
             this.hedgehogSlowApproachPraised = false;
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
             console.log('[SFX event] hedgehog alarm');
             this.playSfx('hedgehogAlarm');
             this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', wireframe: false });
-            this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true });
-            if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
-            this.hedgehogHintTimer = setTimeout(() => {
-               if (this.mode === 'hedgehog' && this.hedgehogState === 'alarm') this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000 });
-            }, 3000);
+            this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'warning' });
         },
 
         enterHedgehogWaiting: function() {
             if (this.hedgehogState !== 'alarm') return;
             this.hedgehogState = 'waiting';
+            this.hedgehogAlarmHintState = 'waiting';
             this.hedgehogWaitStartedAt = performance.now();
             if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
             this.hedgehogHintTimer = null;
-            this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000, priority: 'important', force: true });
+            this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000, priority: 'important', force: true, tone: 'warning' });
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = setTimeout(() => {
                if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting' && this.currentSurfaceDistance >= 0.8) {
@@ -1629,15 +1658,17 @@
 
         completeHedgehogFriend: function() {
             this.hedgehogState = 'friend';
+            this.hedgehogAlarmHintState = 'friend';
             this.restoreHedgehogMaterial();
             console.log('[SFX event] hedgehog calm');
             this.playSfx('hedgehogCalm');
-            this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true, speak: true });
+            this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
             this.showLearningCard('hedgehog');
             if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
             this.hedgehogSafeTimer = setTimeout(() => {
                if (this.mode === 'hedgehog' && this.hedgehogState === 'friend') {
                   this.hedgehogState = 'idle';
+                  this.hedgehogAlarmHintState = 'idle';
                   this.hedgehogSlowApproachPraised = false;
                   this.updateHint(this.getSafeHint('hedgehog'));
                }
@@ -1886,6 +1917,7 @@
             this.hideLearningCard();
             this.hedgehogState = 'idle';
             this.hedgehogInteractionArmed = false;
+            this.hedgehogAlarmHintState = 'idle';
             this.hedgehogSlowApproachPraised = false;
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
