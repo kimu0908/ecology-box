@@ -740,6 +740,7 @@
           this.hedgehogState = 'idle'; // 状态: idle, alarm, waiting, friend
           this.hedgehogTimer = null;
           this.hedgehogWaitStartedAt = 0;
+          this.hedgehogInteractionArmed = false;
           this.hedgehogSlowApproachPraised = false;
           this.hedgehogOriginalMaterials = []; // 保存原始材质以便恢复
 
@@ -942,6 +943,7 @@
              });
              this.faceVisualsToCameraOnce();
              this.showAnimal(this.mode);
+             if (this.mode === 'hedgehog') this.hedgehogInteractionArmed = false;
              this.updateHint(this.getSafeHint(this.mode), { speak: true, lockMs: 2200 });
           });
 
@@ -1084,6 +1086,7 @@
            this.updateSoundToggle();
            var onWelcome = this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden');
            if (this.soundEnabled) {
+              this.unlockAudio();
               if (onWelcome) {
                  this.playBgm();
               } else {
@@ -1092,6 +1095,41 @@
            } else {
               this.stopAllAudio();
            }
+        },
+
+        unlockAudio: function() {
+           var unlockOne = function(audio, label) {
+              if (!audio) return;
+              try {
+                 var previousVolume = audio.volume;
+                 var previousMuted = audio.muted;
+                 audio.volume = 0;
+                 audio.muted = true;
+                 audio.currentTime = 0;
+                 var playPromise = audio.play();
+                 if (playPromise && playPromise.then) {
+                    playPromise.then(() => {
+                       audio.pause();
+                       audio.currentTime = 0;
+                       audio.volume = previousVolume;
+                       audio.muted = previousMuted;
+                    }).catch(error => {
+                       audio.volume = previousVolume;
+                       audio.muted = previousMuted;
+                       console.warn('[Audio unlock blocked]', label, error);
+                    });
+                 } else {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = previousVolume;
+                    audio.muted = previousMuted;
+                 }
+              } catch (error) {
+                 console.warn('[Audio unlock failed]', label, error);
+              }
+           };
+           Object.keys(this.sfxMap || {}).forEach(name => unlockOne(this.sfxMap[name], name));
+           if (this.bgmAudio) unlockOne(this.bgmAudio.cloneNode(true), 'start-bgm');
         },
 
         playSfx: function(name, cooldown) {
@@ -1345,7 +1383,10 @@
           // [初始化与重置] 切入或切出刺猬模式时，恢复冷淡怠速状态
           if (this.models.hedgehog) {
              this.hedgehogState = 'idle';
-             if (newMode === 'hedgehog') this.hedgehogSlowApproachPraised = false;
+             if (newMode === 'hedgehog') {
+                this.hedgehogInteractionArmed = false;
+                this.hedgehogSlowApproachPraised = false;
+             }
              if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
              this.hedgehogTimer = null;
              this.hedgehogWaitStartedAt = 0;
@@ -1468,6 +1509,7 @@
 
             case 'hedgehog':
               if (surfaceDistance >= 0.8) {
+                  this.hedgehogInteractionArmed = true;
                   this.hedgehogSlowApproachPraised = false;
               }
 
@@ -1478,10 +1520,13 @@
                   this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true });
               }
 
-              if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity > 0.3) {
+              if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && !this.hedgehogInteractionArmed) {
+                  this.updateHint('先退后一点，再慢慢靠近我。', { lockMs: 2500, priority: 'important', force: true });
+              }
+              else if (this.hedgehogState === 'idle' && this.hedgehogInteractionArmed === true && surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   this.enterHedgehogAlarm();
               }
-              else if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
+              else if (this.hedgehogState === 'idle' && this.hedgehogInteractionArmed === true && surfaceDistance < 0.6 && approachVelocity > 0 && approachVelocity <= 0.3 && !this.hedgehogSlowApproachPraised) {
                   this.hedgehogSlowApproachPraised = true;
                   console.log('[SFX event] hedgehog slow success');
                   this.playSfx('hedgehogSlowSuccess');
@@ -1559,6 +1604,7 @@
             this.hedgehogTimer = null;
             console.log('[SFX event] hedgehog alarm');
             this.playSfx('hedgehogAlarm');
+            this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', wireframe: false });
             this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true });
             if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
             this.hedgehogHintTimer = setTimeout(() => {
@@ -1839,6 +1885,7 @@
             };
             this.hideLearningCard();
             this.hedgehogState = 'idle';
+            this.hedgehogInteractionArmed = false;
             this.hedgehogSlowApproachPraised = false;
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = null;
