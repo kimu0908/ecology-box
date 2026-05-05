@@ -1874,6 +1874,10 @@
 
         speakHint: function(text) {
            if (!this.guideVoiceEnabled || !text) return;
+           if (this.lang === 'ja') {
+              console.log('[TTS skipped] Japanese UI text is displayed, but Japanese voice is disabled by design.');
+              return;
+           }
            if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
            var now = performance.now();
            if (text === this.lastSpokenHint && now - this.lastSpokenAt < 4000) return;
@@ -2810,9 +2814,15 @@
           this.reticleStatus = '';
           this.refSpaceType = '';
           this._hitTestSessionListenersBound = false;
+          this.activeSession = null;
+          this.hitTestInitRetryTimer = null;
+          this.hitTestInitAttempts = 0;
+          this.hitTestInitializing = false;
+          this.onXRSelect = null;
+          this.onXREnd = null;
 
           this.el.sceneEl.addEventListener('enter-vr', () => {
-            setTimeout(() => this.initHitTestSession(), 100);
+            this.scheduleHitTestInit(120);
           });
 
           this.el.sceneEl.addEventListener('placement-reset', () => {
@@ -2820,25 +2830,64 @@
             this.lastHintMessage = '';
             this.lastReticleStatusTime = 0;
             this.reticleStatus = '';
-            this.el.setAttribute('visible', 'true');
+            this.el.setAttribute('visible', 'false');
+            if (!this.xrHitTestSource || !this.refSpace) {
+              this.scheduleHitTestInit(80);
+            }
           });
 
           this.el.sceneEl.addEventListener('exit-vr', () => {
             this.resetHitTestState(true);
           });
         },
+        scheduleHitTestInit: function(delay) {
+          if (this.hitTestInitRetryTimer) {
+            clearTimeout(this.hitTestInitRetryTimer);
+            this.hitTestInitRetryTimer = null;
+          }
+
+          this.hitTestInitRetryTimer = setTimeout(() => {
+            this.hitTestInitRetryTimer = null;
+            this.initHitTestSession();
+          }, delay || 100);
+        },
         initHitTestSession: function() {
             var sceneEl = this.el.sceneEl;
             if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return;
 
-            var session = sceneEl.renderer.xr.getSession();
-            if (!session) {
-              console.warn('[AR] No XR session yet; retry hit-test init shortly.');
-              setTimeout(() => this.initHitTestSession(), 100);
+            if (!sceneEl.is('ar-mode') && !sceneEl.is('vr-mode')) {
+              this.hitTestInitializing = false;
+              this.hitTestInitAttempts = 0;
               return;
             }
 
-            this.resetHitTestState(true);
+            var session = sceneEl.renderer.xr.getSession();
+            if (!session) {
+              this.hitTestInitAttempts++;
+              if (this.hitTestInitAttempts > 20) {
+                console.warn('[AR] No XR session after retries; stop hit-test init.');
+                this.hitTestInitializing = false;
+                this.hitTestInitAttempts = 0;
+                this.emitHintKey('hint.scan.hitError');
+                return;
+              }
+              console.warn('[AR] No XR session yet; retry hit-test init shortly.', this.hitTestInitAttempts);
+              this.scheduleHitTestInit(120);
+              return;
+            }
+
+            if (this.hitTestInitializing) return;
+            this.hitTestInitializing = true;
+            this.hitTestInitAttempts = 0;
+
+            if (this.activeSession !== session) {
+              this.detachSessionListeners();
+              this.activeSession = session;
+              this.attachSessionListeners(session);
+            }
+
+            this.resetHitTestState(true, { keepSessionListeners: true });
+            this.hitTestInitializing = true;
             
             session.requestReferenceSpace('viewer').then((space) => {
               this.viewerSpace = space;
@@ -2846,8 +2895,10 @@
               return session.requestHitTestSource({ space: this.viewerSpace });
             }).then((hitTestSource) => {
               this.xrHitTestSource = hitTestSource;
+              this.hitTestInitializing = false;
               console.log('[AR] hitTestSource ready');
             }).catch((err) => {
+              this.hitTestInitializing = false;
               console.warn('[AR] hitTestSource failed', err);
               this.emitHintKey('hint.scan.hitError');
             });
@@ -2895,7 +2946,59 @@
             this._hitTestSessionListenersBound = true;
             }
         },
-        resetHitTestState: function(cancelSource) {
+        attachSessionListeners: function(session) {
+          if (!session) return;
+
+          this.onXREnd = () => {
+            this.resetHitTestState(true);
+            this.detachSessionListeners();
+          };
+
+          this.onXRSelect = (event) => {
+            if (!this.el.getAttribute('visible')) return;
+            if (this.hasPlaced) return; // [淇涓€] 宸叉斁缃垯鎷︽埅閲嶅瑙﹀彂
+            var anchorEl = this.data.target;
+            var anchorEl = this.data.target;
+            if (!anchorEl) return;
+
+            var reticlePos = new THREE.Vector3();
+            this.el.object3D.getWorldPosition(reticlePos);
+            var correctedAnchorPosition = new THREE.Vector3().copy(reticlePos);
+            correctedAnchorPosition.y += this.groundYOffset;
+            anchorEl.setAttribute('position', { x: 0, y: 0, z: 0 });
+            anchorEl.setAttribute('visible', 'true');
+            this.el.sceneEl.emit('monster-spawned', { position: correctedAnchorPosition, reticlePosition: reticlePos });
+            // [淇涓€] 鏀剧疆鍚庨攣瀹氬苟闅愯棌鍏夊湀
+            this.hasPlaced = true;
+            this.el.setAttribute('visible', 'false');
+          };
+
+          session.addEventListener('end', this.onXREnd);
+          session.addEventListener('select', this.onXRSelect);
+          this._hitTestSessionListenersBound = true;
+        },
+        detachSessionListeners: function() {
+          if (this.activeSession) {
+            try {
+              if (this.onXREnd) this.activeSession.removeEventListener('end', this.onXREnd);
+              if (this.onXRSelect) this.activeSession.removeEventListener('select', this.onXRSelect);
+            } catch (error) {
+              console.warn('[AR] detach session listeners failed', error);
+            }
+          }
+
+          this.onXREnd = null;
+          this.onXRSelect = null;
+          this.activeSession = null;
+          this._hitTestSessionListenersBound = false;
+        },
+        resetHitTestState: function(cancelSource, options) {
+          var opts = options || {};
+          if (this.hitTestInitRetryTimer) {
+            clearTimeout(this.hitTestInitRetryTimer);
+            this.hitTestInitRetryTimer = null;
+          }
+
           if (cancelSource && this.xrHitTestSource && this.xrHitTestSource.cancel) {
             try {
               this.xrHitTestSource.cancel();
@@ -2911,7 +3014,11 @@
             this.lastHintMessage = '';
             this.reticleStatus = '';
             this.lastReticleStatusTime = 0;
-            this._hitTestSessionListenersBound = false;
+            this.hitTestInitializing = false;
+            this.hitTestInitAttempts = 0;
+            if (!opts.keepSessionListeners) {
+              this.detachSessionListeners();
+            }
             this.el.setAttribute('visible', 'false');
         },
         emitHint: function(message) {
