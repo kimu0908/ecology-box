@@ -1983,6 +1983,10 @@
                  this.startExperienceEl.disabled = false;
                  this.setStartButtonText();
               }
+              var reticleEl = document.getElementById('reticle');
+              if (reticleEl && reticleEl.components && reticleEl.components['ar-hit-test-placer']) {
+                 reticleEl.components['ar-hit-test-placer'].scheduleHitTestInit(80);
+              }
            };
            var fallback = () => {
               this.isStartingAR = false;
@@ -2005,6 +2009,10 @@
            try {
               if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
                  finish();
+                 var reticleEl = document.getElementById('reticle');
+                 if (reticleEl && reticleEl.components && reticleEl.components['ar-hit-test-placer']) {
+                    reticleEl.components['ar-hit-test-placer'].scheduleHitTestInit(80);
+                 }
                  return;
               }
               var enterAR = scene.enterAR || scene.enterVR;
@@ -2856,8 +2864,15 @@
             if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return;
 
             if (!sceneEl.is('ar-mode') && !sceneEl.is('vr-mode')) {
-              this.hitTestInitializing = false;
-              this.hitTestInitAttempts = 0;
+              this.hitTestInitAttempts++;
+              if (this.hitTestInitAttempts > 20) {
+                console.warn('[AR] Scene did not enter ar-mode after retries; stop hit-test init.');
+                this.hitTestInitializing = false;
+                this.hitTestInitAttempts = 0;
+                return;
+              }
+              console.warn('[AR] Waiting for ar-mode before hit-test init.', this.hitTestInitAttempts);
+              this.scheduleHitTestInit(120);
               return;
             }
 
@@ -2920,31 +2935,6 @@
               console.warn('[AR] refSpace failed', err);
               this.emitHintKey('hint.scan.refError');
             });
-
-            if (!this._hitTestSessionListenersBound) {
-            session.addEventListener('end', () => {
-              this.resetHitTestState(true);
-            });
-
-            session.addEventListener('select', (event) => {
-              if (!this.el.getAttribute('visible')) return;
-              if (this.hasPlaced) return; // [修复一] 已放置则拦截重复触发
-              var anchorEl = this.data.target;
-              if (anchorEl) {
-                var reticlePos = new THREE.Vector3();
-                this.el.object3D.getWorldPosition(reticlePos);
-                var correctedAnchorPosition = new THREE.Vector3().copy(reticlePos);
-                correctedAnchorPosition.y += this.groundYOffset;
-                anchorEl.setAttribute('position', { x: 0, y: 0, z: 0 });
-                anchorEl.setAttribute('visible', 'true');
-                this.el.sceneEl.emit('monster-spawned', { position: correctedAnchorPosition, reticlePosition: reticlePos });
-                // [修复一] 放置后锁定并隐藏光圈
-                this.hasPlaced = true;
-                this.el.setAttribute('visible', 'false');
-              }
-            });
-            this._hitTestSessionListenersBound = true;
-            }
         },
         attachSessionListeners: function(session) {
           if (!session) return;
@@ -2957,7 +2947,6 @@
           this.onXRSelect = (event) => {
             if (!this.el.getAttribute('visible')) return;
             if (this.hasPlaced) return; // [淇涓€] 宸叉斁缃垯鎷︽埅閲嶅瑙﹀彂
-            var anchorEl = this.data.target;
             var anchorEl = this.data.target;
             if (!anchorEl) return;
 
