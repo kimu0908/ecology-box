@@ -70,6 +70,10 @@
         letter-spacing: 0;
         text-shadow: 0 4px 0 rgba(255,255,255,0.74);
       }
+      .welcome-copy h1.ja-title {
+        line-height: 1.08;
+        letter-spacing: 0.04em;
+      }
       .welcome-copy h2 {
         margin: 0 0 28px;
         color: #5a9d83;
@@ -204,8 +208,17 @@
         font-size: clamp(12px, 1.5vw, 18px);
         backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
         text-align: center;
-        white-space: nowrap;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: keep-all;
+        line-height: 1.35;
         box-shadow: 0 10px 22px rgba(84, 113, 104, 0.12);
+      }
+      body.lang-ja .welcome-tag {
+        font-size: clamp(12px, 1.2vw, 15px);
+        letter-spacing: 0.02em;
+        line-height: 1.35;
       }
       .welcome-tag.space { color: #2672a2; }
       .welcome-tag.repair { color: #c46f4c; }
@@ -370,8 +383,7 @@
       #reset-placement,
       #return-home,
       #collection-open,
-      #sound-toggle,
-      #language-toggle {
+      #sound-toggle {
         pointer-events: auto;
         min-height: 48px;
         background: rgba(255, 253, 246, 0.7); color: #4f806a;
@@ -385,7 +397,6 @@
       #return-home::before { content: "⌂ "; font-size: 1.1em; }
       #collection-open::before { content: "◇ "; font-size: 1.1em; }
       #sound-toggle::before { content: "♪ "; font-size: 1.1em; }
-      #language-toggle::before { content: "文 "; font-size: 1.02em; }
       .welcome-sound-toggle {
         position: absolute;
         top: 22px;
@@ -404,12 +415,50 @@
         backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
       }
       .welcome-sound-toggle::before { content: "♪ "; }
-      .welcome-language-toggle {
+      .language-panel {
         position: absolute;
-        top: 22px;
-        right: 136px;
+        top: 16px;
+        left: 16px;
+        z-index: 1301;
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: #315f58;
       }
-      .welcome-language-toggle::before { content: "文 "; }
+      .language-label {
+        padding-left: 4px;
+        font-size: 12px;
+        font-weight: 850;
+        opacity: 0.74;
+      }
+      .language-options {
+        display: flex;
+        gap: 6px;
+        padding: 5px;
+        border-radius: 999px;
+        background: rgba(255, 253, 246, 0.58);
+        border: 1px solid rgba(255,255,255,0.82);
+        box-shadow: 0 10px 24px rgba(52, 84, 77, 0.12), inset 0 1px 0 rgba(255,255,255,0.82);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      }
+      .language-options button {
+        pointer-events: auto;
+        min-height: 34px;
+        border: 0;
+        border-radius: 999px;
+        padding: 7px 12px;
+        background: transparent;
+        color: #5a7a72;
+        font-size: 14px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      .language-options button.active {
+        background: rgba(255,255,255,0.92);
+        color: #2f5f55;
+        box-shadow: 0 6px 16px rgba(56, 128, 108, 0.16);
+      }
 
       .mode-btn {
         pointer-events: auto;
@@ -484,12 +533,18 @@
         font-size: clamp(28px, 4vw, 44px);
         font-weight: 950;
         letter-spacing: 0;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-break: strict;
       }
       .collection-subtitle {
         margin: 6px 0 0;
         color: #557a72;
         font-size: clamp(15px, 2vw, 20px);
         font-weight: 750;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-break: strict;
       }
       .collection-close {
         flex: none;
@@ -539,11 +594,17 @@
         color: #225e59;
         font-size: clamp(21px, 2.4vw, 28px);
         font-weight: 950;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-break: strict;
       }
       .collection-type {
         color: #5f8d7a;
         font-size: 15px;
         font-weight: 850;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-break: strict;
       }
       .collection-desc {
         margin: 4px 0 0;
@@ -551,6 +612,17 @@
         font-size: 15px;
         line-height: 1.42;
         font-weight: 720;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+        line-break: strict;
+      }
+      body.lang-ja .collection-title {
+        letter-spacing: 0.04em;
+        line-height: 1.15;
+      }
+      body.lang-ja .collection-desc {
+        line-height: 1.5;
+        font-size: 14px;
       }
       .collection-status {
         margin-top: auto;
@@ -618,8 +690,7 @@
         #reset-placement,
         #return-home,
         #collection-open,
-        #sound-toggle,
-        #language-toggle {
+        #sound-toggle {
           width: 142px;
           height: 46px;
           min-height: 46px;
@@ -690,8 +761,7 @@
         #reset-placement,
         #return-home,
         #collection-open,
-        #sound-toggle,
-        #language-toggle {
+        #sound-toggle {
           min-height: 42px;
           padding: 8px 13px;
         }
@@ -702,12 +772,22 @@
           padding: 8px 13px;
           font-size: 14px;
         }
-        .welcome-language-toggle {
-          top: 16px;
-          right: 112px;
-          min-height: 42px;
-          padding: 8px 13px;
-          font-size: 14px;
+        .language-panel {
+          top: 12px;
+          left: 12px;
+        }
+        .language-label {
+          font-size: 11px;
+          margin-bottom: 2px;
+        }
+        .language-options {
+          gap: 4px;
+          padding: 4px;
+        }
+        .language-options button {
+          min-height: 30px;
+          padding: 6px 10px;
+          font-size: 13px;
         }
         #instruction-text {
           bottom: 144px;
@@ -807,7 +887,10 @@
       const BOUNDARY_I18N = {
         zh: {
           'lang.toggle': '日本語',
-          'welcome.kicker.zh': '给小朋友的 AR 距离练习',
+          'lang.label': '切换语言',
+          'lang.zh': '中文',
+          'lang.ja': '日本語',
+          'welcome.kicker.zh': '小朋友的边界距离练习',
           'welcome.kicker.en': 'A gentle AR space-learning toy for children',
           'welcome.title': '邊界生態箱',
           'welcome.subtitle': 'The Boundary Terrarium',
@@ -877,9 +960,12 @@
         },
         ja: {
           'lang.toggle': '中文',
-          'welcome.kicker.zh': '子どものための AR 距離レッスン',
+          'lang.label': '言語切替',
+          'lang.zh': '中文',
+          'lang.ja': '日本語',
+          'welcome.kicker.zh': 'こどものための境界と距離のレッスン',
           'welcome.kicker.en': 'A gentle AR space-learning toy for children',
-          'welcome.title': '境界テラリウム',
+          'welcome.title': '境界\nテラリウム',
           'welcome.subtitle': 'The Boundary Terrarium',
           'welcome.description': '小さな生きものが好きな距離を探して、\nゆっくり近づくことと空間を大切にすることを学ぼう。',
           'welcome.start': '体験をはじめる',
@@ -889,8 +975,8 @@
           'welcome.slow': '読み込みに時間がかかっています。少し待つか、ページを更新してください。',
           'welcome.loadingNote': '読み込み中です。少し待ってね…',
           'welcome.fallback': '自動で入れない場合は、ARボタンを押してください。',
-          'welcome.tag.puffer': 'もう少し空間が必要',
-          'welcome.tag.octopus': '離れてから粘液を外す',
+          'welcome.tag.puffer': 'すこし距離があると安心',
+          'welcome.tag.octopus': '離れてからぬめりを外そう',
           'welcome.tag.hedgehog': 'ゆっくり近づくと安心',
           'welcome.motto': '観察 · 理解 · 尊重',
           'action.reset': '置き直す',
@@ -903,14 +989,14 @@
           'animal.hedgehog': 'ハリネズミ',
           'mentor.defaultTitle': '学んだこと',
           'mentor.close': 'わかった',
-          'collection.title': '境界図鑑',
-          'collection.subtitle': '学んだ境界のルールを集めよう',
+          'collection.title': '境界ずかん',
+          'collection.subtitle': '学んだ境界を集めよう',
           'collection.close': '図鑑を閉じる',
           'collection.puffer.type': 'やわらかい境界',
           'collection.octopus.type': 'くっつきやすい境界',
           'collection.hedgehog.type': '見えない境界',
-          'collection.puffer.desc': '少し近づいてもいいけれど、近すぎないでね。',
-          'collection.octopus.desc': '近すぎる熱心さには、心地よい距離も必要。',
+          'collection.puffer.desc': '少し近づけるけれど、近すぎないように。',
+          'collection.octopus.desc': '近すぎるときは、お互いの場所を取り戻そう。',
           'collection.hedgehog.desc': 'ゆっくり近づくこと、待つことも尊重です。',
           'collection.unlearned': '未学習',
           'collection.learned': '学習済み',
@@ -994,7 +1080,10 @@
           this.collectionCloseEl = document.getElementById('collection-close');
           this.soundToggleEl = document.getElementById('sound-toggle');
           this.soundToggleEls = Array.from(document.querySelectorAll('.sound-toggle'));
-          this.languageToggleEls = Array.from(document.querySelectorAll('.language-toggle'));
+          this.languagePanelEl = document.getElementById('language-panel');
+          this.languageLabelEl = document.querySelector('.language-label');
+          this.langZhEl = document.getElementById('lang-zh');
+          this.langJaEl = document.getElementById('lang-ja');
           this.placementDebugEl = document.getElementById('placement-debug');
           this.placementDebugBodyEl = document.getElementById('placement-debug-body');
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
@@ -1042,6 +1131,7 @@
           this.lastSpokenHint = '';
           this.lastSpokenAt = 0;
           this.currentVoice = null;
+          this.availableVoices = [];
           this.bgmAudio = null;
           this.initAudio();
 
@@ -1115,10 +1205,14 @@
              button.addEventListener('beforexrselect', e => e.preventDefault());
              button.addEventListener('click', () => this.toggleSound());
           });
-          this.languageToggleEls.forEach(button => {
-             button.addEventListener('beforexrselect', e => e.preventDefault());
-             button.addEventListener('click', () => this.toggleLanguage());
-          });
+          if (this.langZhEl) {
+             this.langZhEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.langZhEl.addEventListener('click', () => this.setLanguage('zh'));
+          }
+          if (this.langJaEl) {
+             this.langJaEl.addEventListener('beforexrselect', e => e.preventDefault());
+             this.langJaEl.addEventListener('click', () => this.setLanguage('ja'));
+          }
           this.applyLanguage();
           this.updateCollectionUI();
           if (this.startExperienceEl && this.welcomeOverlayEl) {
@@ -1311,15 +1405,21 @@
                  console.warn('Audio init failed:', name, error);
               }
            });
-           try {
-              this.bgmAudio = new Audio(path + 'start-bgm.mp3');
-              this.bgmAudio.loop = true;
-              this.bgmAudio.preload = 'auto';
-              this.bgmAudio.volume = 0.42;
+          try {
+             this.bgmAudio = new Audio(path + 'start-bgm.mp3');
+             this.bgmAudio.loop = true;
+             this.bgmAudio.preload = 'auto';
+             this.bgmAudio.volume = 0.42;
               this.bgmAudio.addEventListener('canplaythrough', () => console.log('[BGM ready] start-bgm.mp3'));
               this.bgmAudio.addEventListener('error', () => console.warn('[BGM load error] start-bgm.mp3'));
-           } catch (error) {
-              console.warn('BGM init failed:', error);
+          } catch (error) {
+             console.warn('BGM init failed:', error);
+           }
+           if (window.speechSynthesis) {
+              this.availableVoices = window.speechSynthesis.getVoices() || [];
+              window.speechSynthesis.onvoiceschanged = () => {
+                 this.availableVoices = window.speechSynthesis.getVoices() || [];
+              };
            }
         },
 
@@ -1336,6 +1436,7 @@
 
         setLanguage: function(lang) {
            if (lang !== 'zh' && lang !== 'ja') return;
+           this.stopVoice(false);
            this.lang = lang;
            localStorage.setItem('boundaryTerrariumLang', lang);
            this.applyLanguage();
@@ -1351,16 +1452,27 @@
         },
 
         updateLanguageToggle: function() {
-           if (!this.languageToggleEls) return;
-           this.languageToggleEls.forEach(button => {
-              button.innerText = this.t('lang.toggle');
-           });
+           if (this.languageLabelEl) this.languageLabelEl.innerText = this.t('lang.label');
+           if (this.langZhEl) {
+              this.langZhEl.innerText = this.t('lang.zh');
+              this.langZhEl.classList.toggle('active', this.lang === 'zh');
+           }
+           if (this.langJaEl) {
+              this.langJaEl.innerText = this.t('lang.ja');
+              this.langJaEl.classList.toggle('active', this.lang === 'ja');
+           }
         },
 
         applyLanguage: function() {
+           document.body.classList.toggle('lang-ja', this.lang === 'ja');
+           document.body.classList.toggle('lang-zh', this.lang === 'zh');
            var brand = document.querySelector('.welcome-brand span:last-child');
            if (brand) brand.innerHTML = this.t('welcome.kicker.zh') + '<br>' + this.t('welcome.kicker.en');
-           this.setText('.welcome-copy h1', 'welcome.title');
+           var title = document.querySelector('.welcome-copy h1');
+           if (title) {
+              title.innerHTML = this.t('welcome.title').replace(/\n/g, '<br>');
+              title.classList.toggle('ja-title', this.lang === 'ja');
+           }
            this.setText('.welcome-copy h2', 'welcome.subtitle');
            var desc = document.querySelector('.welcome-copy p');
            if (desc) desc.innerHTML = this.t('welcome.description').replace(/\n/g, '<br>');
@@ -1436,9 +1548,9 @@
 
         toggleSound: function() {
            this.soundEnabled = !this.soundEnabled;
-           this.updateSoundToggle();
            var onWelcome = this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden');
            if (this.soundEnabled) {
+              this.updateSoundToggle();
               this.unlockAudio();
               if (onWelcome) {
                  this.playBgm();
@@ -1447,6 +1559,7 @@
               }
            } else {
               this.stopAllAudio();
+              this.updateSoundToggle();
            }
         },
 
@@ -1524,6 +1637,9 @@
               return;
            }
            try {
+              this.stopBgm();
+              this.bgmAudio.loop = true;
+              this.bgmAudio.volume = 0.45;
               this.bgmAudio.currentTime = 0;
               console.log('[BGM play] assets/audio/start-bgm.mp3');
               this.bgmAudio.play().catch(error => console.warn('[BGM blocked]', error));
@@ -1570,6 +1686,24 @@
            }
         },
 
+        getVoiceForLang: function(lang) {
+           if (!window.speechSynthesis) return null;
+           var voices = this.availableVoices && this.availableVoices.length ? this.availableVoices : window.speechSynthesis.getVoices();
+           this.availableVoices = voices || [];
+           if (!voices || !voices.length) return null;
+           var matchers = lang === 'ja'
+              ? [voice => voice.lang && voice.lang.toLowerCase().indexOf('ja') === 0,
+                 voice => /Japanese|Kyoko|Otoya/i.test(voice.name || '')]
+              : [voice => voice.lang && voice.lang.toLowerCase().indexOf('zh') === 0,
+                 voice => /Chinese|Mei|Ting/i.test(voice.name || '')];
+           for (var i = 0; i < matchers.length; i++) {
+              var found = voices.find(matchers[i]);
+              if (found) return found;
+           }
+           console.warn('[Voice missing]', lang === 'ja' ? 'ja-JP' : 'zh-TW');
+           return null;
+        },
+
         speakHint: function(text) {
            if (!this.soundEnabled || !text) return;
            if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
@@ -1580,8 +1714,10 @@
            } catch (error) {}
            try {
               var utterance = new SpeechSynthesisUtterance(text);
-              utterance.lang = 'zh-TW';
-              utterance.rate = 0.9;
+              var voice = this.getVoiceForLang(this.lang);
+              utterance.lang = this.lang === 'ja' ? 'ja-JP' : 'zh-TW';
+              if (voice) utterance.voice = voice;
+              utterance.rate = this.lang === 'ja' ? 0.85 : 0.9;
               utterance.pitch = 1.05;
               utterance.volume = 1;
               utterance.onend = () => { this.currentVoice = null; };
@@ -2594,9 +2730,15 @@
   <body>
     <!-- DOM Overlay系统（UI面板） -->
     <div id="ar-ui-layer">
+      <div id="language-panel" class="language-panel">
+        <div class="language-label">切换语言</div>
+        <div class="language-options">
+          <button id="lang-zh" type="button">中文</button>
+          <button id="lang-ja" type="button">日本語</button>
+        </div>
+      </div>
       <div id="welcome-overlay">
         <button id="welcome-sound-toggle" class="sound-toggle welcome-sound-toggle" type="button">声音：关</button>
-        <button id="welcome-language-toggle" class="language-toggle welcome-language-toggle" type="button">日本語</button>
         <section class="welcome-shell" aria-label="邊界生態箱開始畫面">
           <div class="welcome-copy">
             <div class="welcome-brand">
@@ -2641,7 +2783,6 @@
         <button id="return-home">返回首页</button>
         <button id="collection-open">边界图鉴</button>
         <button id="sound-toggle" class="sound-toggle">声音：关</button>
-        <button id="language-toggle" class="language-toggle">日本語</button>
       </div>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
