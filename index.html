@@ -744,24 +744,37 @@
         #start-experience { min-height: 68px; }
         .welcome-terrarium {
           grid-row: 2;
-          min-height: min(50dvh, 430px);
+          min-height: 460px;
+          overflow: visible;
           order: -1;
         }
         .welcome-visual-placeholder {
+          inset: 7% 5% 18%;
           grid-template-columns: repeat(3, minmax(0, 1fr));
+          align-items: center;
           gap: 8px;
-          padding: 16px 10px 22px;
+          padding: 18px 8px 34px;
         }
-        .welcome-creature-card { min-height: 170px; gap: 6px; }
+        .welcome-creature-card { min-height: 220px; justify-content: center; gap: 10px; }
         .welcome-creature-card:nth-child(2) { transform: translateY(-10px); }
-        .welcome-animal { width: clamp(88px, 27vw, 124px); }
-        .welcome-creature-card:nth-child(2) .welcome-animal { width: clamp(96px, 29vw, 134px); }
-        .welcome-orbit { width: min(126%, 138px); }
+        .welcome-animal { width: clamp(96px, 28vw, 132px); }
+        .welcome-creature-card:nth-child(2) .welcome-animal { width: clamp(104px, 30vw, 142px); }
+        .welcome-animal img {
+          width: 92%;
+          height: 92%;
+          object-fit: contain;
+        }
+        .welcome-orbit { width: min(132%, 148px); top: 44%; }
         .welcome-tag {
           display: block;
-          padding: 7px 8px;
+          padding: 7px 7px;
           font-size: 12px;
+          line-height: 1.35;
+          max-width: 96%;
           white-space: normal;
+        }
+        .welcome-note {
+          bottom: 18px;
         }
         #distance-ui {
           top: 16px; left: 14px;
@@ -1762,7 +1775,7 @@
            }
            var matchers = lang === 'ja'
               ? [voice => voice.lang && voice.lang.toLowerCase().indexOf('ja') === 0,
-                 voice => /Japanese|Kyoko|Otoya/i.test(voice.name || '')]
+                 voice => /Japanese|Kyoko|Otoya|Haruka|Ichiro/i.test(voice.name || '')]
               : [voice => voice.lang && voice.lang.toLowerCase().indexOf('zh') === 0,
                  voice => /Chinese|Mei|Ting/i.test(voice.name || '')];
            for (var i = 0; i < matchers.length; i++) {
@@ -1787,6 +1800,12 @@
               var voice = this.getVoiceForLang(this.lang);
               utterance.lang = this.lang === 'ja' ? 'ja-JP' : 'zh-TW';
               if (voice) utterance.voice = voice;
+              console.log('[TTS speak]', {
+                 lang: this.lang,
+                 utteranceLang: utterance.lang,
+                 text: text,
+                 voice: voice ? { name: voice.name, lang: voice.lang } : 'default'
+              });
               utterance.rate = this.lang === 'ja' ? 0.85 : 0.9;
               utterance.pitch = 1.05;
               utterance.volume = 1;
@@ -2292,6 +2311,25 @@
             }
         },
 
+        resetCollectionForNewExperience: function() {
+            this.completedLessons = {
+                pufferfish: false,
+                octopus: false,
+                hedgehog: false
+            };
+            this.collectionProgress = {
+                pufferfish: false,
+                octopus: false,
+                hedgehog: false
+            };
+            try {
+                localStorage.removeItem(this.collectionStorageKey);
+            } catch (error) {
+                console.warn('Collection progress reset failed:', error);
+            }
+            this.updateCollectionUI();
+        },
+
         unlockCollection: function(type) {
             if (!this.collectionProgress || !(type in this.collectionProgress)) return;
             if (this.collectionProgress[type]) {
@@ -2501,6 +2539,7 @@
 
         returnToHome: function() {
             this.resetPlacement();
+            this.resetCollectionForNewExperience();
             this.currentHint = '';
             this.isStartingAR = false;
             if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
