@@ -1885,21 +1885,14 @@
               var voice = this.getVoiceForLang(this.lang);
               utterance.lang = this.lang === 'ja' ? 'ja-JP' : 'zh-TW';
               if (this.lang === 'ja' && !voice) {
-                 console.log('[TTS speak]', {
-                    lang: this.lang,
-                    utteranceLang: utterance.lang,
-                    text: text,
-                    voice: 'none'
-                 });
-                 console.warn('[TTS skipped] ja-JP voice not found; refusing to use non-Japanese voice for Japanese text.');
-                 return;
+                 console.warn('[TTS fallback] ja-JP voice not found; trying browser default with ja-JP utterance.');
               }
               if (voice) utterance.voice = voice;
               console.log('[TTS speak]', {
                  lang: this.lang,
                  utteranceLang: utterance.lang,
                  text: text,
-                 voice: voice ? { name: voice.name, lang: voice.lang } : 'none'
+                 voice: voice ? { name: voice.name, lang: voice.lang } : 'browser-default'
               });
               utterance.rate = this.lang === 'ja' ? 0.85 : 0.9;
               utterance.pitch = 1.05;
@@ -2816,10 +2809,35 @@
           this.lastReticleStatusTime = 0;
           this.reticleStatus = '';
           this.refSpaceType = '';
+          this._hitTestSessionListenersBound = false;
 
           this.el.sceneEl.addEventListener('enter-vr', () => {
-            if (!this.el.sceneEl.is('ar-mode')) return;
-            var session = this.el.sceneEl.renderer.xr.getSession();
+            setTimeout(() => this.initHitTestSession(), 100);
+          });
+
+          this.el.sceneEl.addEventListener('placement-reset', () => {
+            this.hasPlaced = false;
+            this.lastHintMessage = '';
+            this.lastReticleStatusTime = 0;
+            this.reticleStatus = '';
+            this.el.setAttribute('visible', 'true');
+          });
+
+          this.el.sceneEl.addEventListener('exit-vr', () => {
+            this.resetHitTestState(true);
+          });
+        },
+        initHitTestSession: function() {
+            var sceneEl = this.el.sceneEl;
+            if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return;
+
+            var session = sceneEl.renderer.xr.getSession();
+            if (!session) {
+              console.warn('[AR] No XR session yet; retry hit-test init shortly.');
+              setTimeout(() => this.initHitTestSession(), 100);
+              return;
+            }
+
             this.resetHitTestState(true);
             
             session.requestReferenceSpace('viewer').then((space) => {
@@ -2852,6 +2870,7 @@
               this.emitHintKey('hint.scan.refError');
             });
 
+            if (!this._hitTestSessionListenersBound) {
             session.addEventListener('end', () => {
               this.resetHitTestState(true);
             });
@@ -2873,19 +2892,8 @@
                 this.el.setAttribute('visible', 'false');
               }
             });
-          });
-
-          this.el.sceneEl.addEventListener('placement-reset', () => {
-            this.hasPlaced = false;
-            this.lastHintMessage = '';
-            this.lastReticleStatusTime = 0;
-            this.reticleStatus = '';
-            this.el.setAttribute('visible', 'true');
-          });
-
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.resetHitTestState(true);
-          });
+            this._hitTestSessionListenersBound = true;
+            }
         },
         resetHitTestState: function(cancelSource) {
           if (cancelSource && this.xrHitTestSource && this.xrHitTestSource.cancel) {
@@ -2903,6 +2911,7 @@
             this.lastHintMessage = '';
             this.reticleStatus = '';
             this.lastReticleStatusTime = 0;
+            this._hitTestSessionListenersBound = false;
             this.el.setAttribute('visible', 'false');
         },
         emitHint: function(message) {
