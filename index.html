@@ -417,7 +417,7 @@
       .welcome-sound-toggle::before { content: "♪ "; }
       .language-panel {
         position: absolute;
-        top: 16px;
+        top: 76px;
         left: 16px;
         z-index: 1301;
         pointer-events: auto;
@@ -773,7 +773,7 @@
           font-size: 14px;
         }
         .language-panel {
-          top: 12px;
+          top: 72px;
           left: 12px;
         }
         .language-label {
@@ -1133,6 +1133,7 @@
           this.currentVoice = null;
           this.availableVoices = [];
           this.bgmAudio = null;
+          this.bgmPlayToken = 0;
           this.initAudio();
 
           this.models = {
@@ -1548,6 +1549,7 @@
 
         toggleSound: function() {
            this.soundEnabled = !this.soundEnabled;
+           console.log('[SOUND] enabled:', this.soundEnabled);
            var onWelcome = this.welcomeOverlayEl && !this.welcomeOverlayEl.classList.contains('hidden');
            if (this.soundEnabled) {
               this.updateSoundToggle();
@@ -1638,11 +1640,15 @@
            }
            try {
               this.stopBgm();
+              var playToken = ++this.bgmPlayToken;
               this.bgmAudio.loop = true;
               this.bgmAudio.volume = 0.45;
               this.bgmAudio.currentTime = 0;
+              console.log('[BGM] play', this.bgmAudio);
               console.log('[BGM play] assets/audio/start-bgm.mp3');
-              this.bgmAudio.play().catch(error => console.warn('[BGM blocked]', error));
+              this.bgmAudio.play().then(() => {
+                 if (playToken !== this.bgmPlayToken || !this.soundEnabled) this.stopBgm();
+              }).catch(error => console.warn('[BGM blocked]', error));
            } catch (error) {
               console.warn('BGM play failed:', error);
            }
@@ -1651,6 +1657,8 @@
         stopBgm: function() {
            if (!this.bgmAudio) return;
            try {
+              this.bgmPlayToken++;
+              console.log('[BGM] stop', this.bgmAudio);
               this.bgmAudio.pause();
               this.bgmAudio.currentTime = 0;
            } catch (error) {
@@ -1794,6 +1802,7 @@
               this.isStartingAR = false;
               if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
               this.arStartFallbackTimer = null;
+              this.stopBgm();
               if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
               if (this.startExperienceEl) {
                  this.startButtonState = 'ready';
