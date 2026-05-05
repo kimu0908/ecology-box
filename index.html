@@ -431,6 +431,10 @@
       .language-panel.in-ar {
         top: 126px;
       }
+      .language-panel.overlay-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
       .language-label {
         padding-left: 4px;
         font-size: 12px;
@@ -719,6 +723,87 @@
         #distance-ui {
           max-width: 390px;
           opacity: 0.55;
+        }
+      }
+
+      @media (min-width: 721px) and (max-width: 840px) and (orientation: portrait),
+             (min-width: 721px) and (max-height: 920px) and (orientation: portrait) {
+        #welcome-overlay {
+          padding: 28px;
+          padding-top: 72px;
+          padding-bottom: max(64px, env(safe-area-inset-bottom));
+          align-items: start;
+        }
+        .welcome-shell {
+          grid-template-columns: 1fr;
+          gap: 18px;
+          padding: 28px 24px;
+          border-radius: 30px;
+        }
+        .welcome-copy {
+          text-align: center;
+        }
+        .welcome-brand {
+          justify-content: center;
+        }
+        .welcome-copy h1 {
+          margin-top: 24px;
+          font-size: clamp(42px, 8vw, 64px);
+        }
+        .welcome-copy h2 {
+          margin-bottom: 18px;
+          font-size: clamp(20px, 3.8vw, 30px);
+        }
+        .welcome-copy p {
+          margin-left: auto;
+          margin-right: auto;
+          margin-bottom: 24px;
+          font-size: clamp(17px, 2.8vw, 22px);
+        }
+        .welcome-terrarium {
+          order: -1;
+          grid-row: 2;
+          min-height: 440px;
+          overflow: visible;
+        }
+        .welcome-visual-placeholder {
+          inset: 7% 5% 17%;
+          gap: 12px;
+          padding: 22px 10px 34px;
+        }
+        .welcome-creature-card {
+          min-height: 220px;
+          gap: 10px;
+        }
+        .welcome-animal {
+          width: clamp(112px, 17vw, 150px);
+        }
+        .welcome-creature-card:nth-child(2) .welcome-animal {
+          width: clamp(124px, 19vw, 166px);
+        }
+        .welcome-tag {
+          max-width: 96%;
+          white-space: normal;
+          font-size: clamp(12px, 1.8vw, 15px);
+          line-height: 1.35;
+        }
+        .welcome-note {
+          bottom: 18px;
+        }
+        .collection-panel {
+          width: min(92vw, 760px);
+          max-height: calc(100dvh - 52px);
+          margin-top: 24px;
+        }
+        .collection-header {
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+        .collection-title {
+          font-size: clamp(28px, 5vw, 38px);
+        }
+        .collection-subtitle {
+          font-size: clamp(14px, 2.4vw, 18px);
         }
       }
 
@@ -1770,7 +1855,7 @@
               setTimeout(() => {
                  this.availableVoices = window.speechSynthesis.getVoices() || [];
               }, 300);
-              if (lang === 'ja') console.warn('[Voice missing] ja-JP, fallback to default speechSynthesis voice');
+              if (lang === 'ja') console.warn('[Voice missing] ja-JP voice not found.');
               return null;
            }
            var matchers = lang === 'ja'
@@ -1782,7 +1867,7 @@
               var found = voices.find(matchers[i]);
               if (found) return found;
            }
-           if (lang === 'ja') console.warn('[Voice missing] ja-JP, fallback to default speechSynthesis voice');
+           if (lang === 'ja') console.warn('[Voice missing] ja-JP voice not found.');
            else console.warn('[Voice missing] zh-TW');
            return null;
         },
@@ -1799,12 +1884,22 @@
               var utterance = new SpeechSynthesisUtterance(text);
               var voice = this.getVoiceForLang(this.lang);
               utterance.lang = this.lang === 'ja' ? 'ja-JP' : 'zh-TW';
+              if (this.lang === 'ja' && !voice) {
+                 console.log('[TTS speak]', {
+                    lang: this.lang,
+                    utteranceLang: utterance.lang,
+                    text: text,
+                    voice: 'none'
+                 });
+                 console.warn('[TTS skipped] ja-JP voice not found; refusing to use non-Japanese voice for Japanese text.');
+                 return;
+              }
               if (voice) utterance.voice = voice;
               console.log('[TTS speak]', {
                  lang: this.lang,
                  utteranceLang: utterance.lang,
                  text: text,
-                 voice: voice ? { name: voice.name, lang: voice.lang } : 'default'
+                 voice: voice ? { name: voice.name, lang: voice.lang } : 'none'
               });
               utterance.rate = this.lang === 'ja' ? 0.85 : 0.9;
               utterance.pitch = 1.05;
@@ -2265,6 +2360,7 @@
             this.playSfx('learningCardOpen');
             this.renderLearningCard(type);
             this.mentorCardEl.classList.remove('hidden');
+            if (this.languagePanelEl) this.languagePanelEl.classList.add('overlay-hidden');
             this.unlockCollection(type);
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
             this.learningCardTimer = null;
@@ -2284,6 +2380,9 @@
             this.learningCardTimer = null;
             if (this.mentorCardEl) this.mentorCardEl.classList.add('hidden');
             this.currentLearningCardType = '';
+            if (this.languagePanelEl && (!this.collectionOverlayEl || this.collectionOverlayEl.classList.contains('hidden'))) {
+                this.languagePanelEl.classList.remove('overlay-hidden');
+            }
         },
 
         loadCollectionProgress: function() {
@@ -2359,11 +2458,15 @@
             this.playSfx('uiOpen');
             this.updateCollectionUI();
             if (this.collectionOverlayEl) this.collectionOverlayEl.classList.remove('hidden');
+            if (this.languagePanelEl) this.languagePanelEl.classList.add('overlay-hidden');
         },
 
         closeCollection: function() {
             this.playSfx('uiClose');
             if (this.collectionOverlayEl) this.collectionOverlayEl.classList.add('hidden');
+            if (this.languagePanelEl && (!this.mentorCardEl || this.mentorCardEl.classList.contains('hidden'))) {
+                this.languagePanelEl.classList.remove('overlay-hidden');
+            }
         },
 
         clearHintTimers: function(resetOctopusState) {
@@ -2717,15 +2820,7 @@
           this.el.sceneEl.addEventListener('enter-vr', () => {
             if (!this.el.sceneEl.is('ar-mode')) return;
             var session = this.el.sceneEl.renderer.xr.getSession();
-            this.hasPlaced = false;
-            this.lastHintMessage = '';
-            this.lastReticleStatusTime = 0;
-            this.reticleStatus = '';
-            this.xrHitTestSource = null;
-            this.viewerSpace = null;
-            this.refSpace = null;
-            this.refSpaceType = '';
-            this.el.setAttribute('visible', 'false');
+            this.resetHitTestState(true);
             
             session.requestReferenceSpace('viewer').then((space) => {
               this.viewerSpace = space;
@@ -2758,12 +2853,7 @@
             });
 
             session.addEventListener('end', () => {
-              this.hasPlaced = false;
-              this.xrHitTestSource = null;
-              this.viewerSpace = null;
-              this.refSpace = null;
-              this.refSpaceType = '';
-              this.el.setAttribute('visible', 'false');
+              this.resetHitTestState(true);
             });
 
             session.addEventListener('select', (event) => {
@@ -2794,6 +2884,17 @@
           });
 
           this.el.sceneEl.addEventListener('exit-vr', () => {
+            this.resetHitTestState(true);
+          });
+        },
+        resetHitTestState: function(cancelSource) {
+          if (cancelSource && this.xrHitTestSource && this.xrHitTestSource.cancel) {
+            try {
+              this.xrHitTestSource.cancel();
+            } catch (error) {
+              console.warn('[AR] hitTestSource cancel failed', error);
+            }
+          }
             this.hasPlaced = false;
             this.xrHitTestSource = null;
             this.viewerSpace = null;
@@ -2801,8 +2902,8 @@
             this.refSpaceType = '';
             this.lastHintMessage = '';
             this.reticleStatus = '';
+            this.lastReticleStatusTime = 0;
             this.el.setAttribute('visible', 'false');
-          });
         },
         emitHint: function(message) {
           if (this.lastHintMessage === message) return;
