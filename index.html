@@ -167,7 +167,7 @@
         position: relative;
         z-index: 2;
         display: grid; place-items: center;
-        width: min(100%, clamp(112px, 11vw, 150px));
+        width: min(100%, clamp(128px, 13vw, 168px));
         aspect-ratio: 1;
         border-radius: 999px;
         background: transparent;
@@ -176,8 +176,8 @@
         margin: 0 auto;
       }
       .welcome-animal img {
-        width: 74%;
-        height: 74%;
+        width: 86%;
+        height: 86%;
         object-fit: contain;
         background: transparent;
       }
@@ -188,13 +188,13 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 18px;
+        gap: 12px;
       }
       .welcome-creature-card:nth-child(2) {
         transform: translateY(-22px);
       }
       .welcome-creature-card:nth-child(2) .welcome-animal {
-        width: min(100%, clamp(128px, 13vw, 174px));
+        width: min(100%, clamp(142px, 14vw, 190px));
       }
       .welcome-tag {
         z-index: 3;
@@ -429,7 +429,7 @@
         top: 16px;
       }
       .language-panel.in-ar {
-        top: 76px;
+        top: 126px;
       }
       .language-label {
         padding-left: 4px;
@@ -692,6 +692,15 @@
         .mode-btn span {
           font-size: 18px;
         }
+        .welcome-animal {
+          width: min(100%, clamp(132px, 12vw, 176px));
+        }
+        .welcome-creature-card:nth-child(2) .welcome-animal {
+          width: min(100%, clamp(150px, 13vw, 196px));
+        }
+        .welcome-creature-card {
+          gap: 12px;
+        }
         #reset-placement,
         #return-home,
         #collection-open,
@@ -717,7 +726,7 @@
         #welcome-overlay {
           padding: 18px;
           padding-top: 74px;
-          padding-bottom: max(48px, env(safe-area-inset-bottom));
+          padding-bottom: max(88px, env(safe-area-inset-bottom));
           align-items: start;
         }
         .welcome-shell {
@@ -726,6 +735,7 @@
           gap: 16px;
           padding: 22px 18px;
           border-radius: 28px;
+          margin-bottom: 18px;
         }
         .welcome-copy { text-align: center; }
         .welcome-brand { justify-content: center; }
@@ -742,11 +752,11 @@
           gap: 8px;
           padding: 16px 10px 22px;
         }
-        .welcome-creature-card { min-height: 170px; gap: 8px; }
+        .welcome-creature-card { min-height: 170px; gap: 6px; }
         .welcome-creature-card:nth-child(2) { transform: translateY(-10px); }
-        .welcome-animal { width: clamp(76px, 24vw, 110px); }
-        .welcome-creature-card:nth-child(2) .welcome-animal { width: clamp(84px, 26vw, 120px); }
-        .welcome-orbit { width: min(120%, 128px); }
+        .welcome-animal { width: clamp(88px, 27vw, 124px); }
+        .welcome-creature-card:nth-child(2) .welcome-animal { width: clamp(96px, 29vw, 134px); }
+        .welcome-orbit { width: min(126%, 138px); }
         .welcome-tag {
           display: block;
           padding: 7px 8px;
@@ -785,7 +795,7 @@
           top: 14px;
         }
         .language-panel.in-ar {
-          top: 66px;
+          top: 124px;
         }
         .language-label {
           font-size: 11px;
@@ -1135,8 +1145,8 @@
           };
           this.collectionStorageKey = 'boundaryTerrariumCollection';
           this.collectionProgress = this.loadCollectionProgress();
-          this.soundEnabled = false;
           this.guideVoiceEnabled = localStorage.getItem('boundaryTerrariumGuideVoice') === 'true';
+          this.soundEnabled = localStorage.getItem('boundaryTerrariumSfx') === 'true' || this.guideVoiceEnabled;
           this.sfxMap = {};
           this.lastSfxTime = {};
           this.activeSfx = [];
@@ -1569,15 +1579,17 @@
            var nextEnabled = !this.homeBgmEnabled;
            this.homeBgmEnabled = nextEnabled;
            this.guideVoiceEnabled = nextEnabled;
+           this.soundEnabled = nextEnabled;
            localStorage.setItem('boundaryTerrariumHomeBgm', this.homeBgmEnabled ? 'true' : 'false');
            localStorage.setItem('boundaryTerrariumGuideVoice', this.guideVoiceEnabled ? 'true' : 'false');
+           localStorage.setItem('boundaryTerrariumSfx', this.soundEnabled ? 'true' : 'false');
            console.log('[HOME BGM] enabled:', this.homeBgmEnabled);
            if (this.homeBgmEnabled && onWelcome) {
               this.playHomeBgm();
            } else {
               this.stopHomeBgm();
            }
-           if (!this.guideVoiceEnabled) this.stopVoice(true);
+           if (!nextEnabled) this.stopAllAudio();
            this.updateSoundToggle();
         },
 
@@ -1741,7 +1753,13 @@
            if (!window.speechSynthesis) return null;
            var voices = this.availableVoices && this.availableVoices.length ? this.availableVoices : window.speechSynthesis.getVoices();
            this.availableVoices = voices || [];
-           if (!voices || !voices.length) return null;
+           if (!voices || !voices.length) {
+              setTimeout(() => {
+                 this.availableVoices = window.speechSynthesis.getVoices() || [];
+              }, 300);
+              if (lang === 'ja') console.warn('[Voice missing] ja-JP, fallback to default speechSynthesis voice');
+              return null;
+           }
            var matchers = lang === 'ja'
               ? [voice => voice.lang && voice.lang.toLowerCase().indexOf('ja') === 0,
                  voice => /Japanese|Kyoko|Otoya/i.test(voice.name || '')]
@@ -1751,7 +1769,8 @@
               var found = voices.find(matchers[i]);
               if (found) return found;
            }
-           console.warn('[Voice missing]', lang === 'ja' ? 'ja-JP' : 'zh-TW');
+           if (lang === 'ja') console.warn('[Voice missing] ja-JP, fallback to default speechSynthesis voice');
+           else console.warn('[Voice missing] zh-TW');
            return null;
         },
 
