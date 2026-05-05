@@ -716,6 +716,7 @@
       @media (max-width: 720px) {
         #welcome-overlay {
           padding: 18px;
+          padding-top: 74px;
           padding-bottom: max(48px, env(safe-area-inset-bottom));
           align-items: start;
         }
@@ -1135,6 +1136,7 @@
           this.collectionStorageKey = 'boundaryTerrariumCollection';
           this.collectionProgress = this.loadCollectionProgress();
           this.soundEnabled = false;
+          this.guideVoiceEnabled = localStorage.getItem('boundaryTerrariumGuideVoice') === 'true';
           this.sfxMap = {};
           this.lastSfxTime = {};
           this.activeSfx = [];
@@ -1564,14 +1566,18 @@
 
         toggleSound: function() {
            var onWelcome = this.isWelcomeVisible();
-           this.homeBgmEnabled = !this.homeBgmEnabled;
+           var nextEnabled = !this.homeBgmEnabled;
+           this.homeBgmEnabled = nextEnabled;
+           this.guideVoiceEnabled = nextEnabled;
            localStorage.setItem('boundaryTerrariumHomeBgm', this.homeBgmEnabled ? 'true' : 'false');
+           localStorage.setItem('boundaryTerrariumGuideVoice', this.guideVoiceEnabled ? 'true' : 'false');
            console.log('[HOME BGM] enabled:', this.homeBgmEnabled);
            if (this.homeBgmEnabled && onWelcome) {
               this.playHomeBgm();
            } else {
               this.stopHomeBgm();
            }
+           if (!this.guideVoiceEnabled) this.stopVoice(true);
            this.updateSoundToggle();
         },
 
@@ -1750,7 +1756,7 @@
         },
 
         speakHint: function(text) {
-           if (!this.soundEnabled || !text) return;
+           if (!this.guideVoiceEnabled || !text) return;
            if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
            var now = performance.now();
            if (text === this.lastSpokenHint && now - this.lastSpokenAt < 4000) return;
@@ -2480,16 +2486,38 @@
             this.isStartingAR = false;
             if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
             this.arStartFallbackTimer = null;
-            if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
-            if (this.startExperienceEl) {
-                this.startButtonState = this.isAppReady ? 'ready' : 'loading';
-                this.startExperienceEl.disabled = !this.isAppReady;
-                this.setStartButtonText();
+            this.stopVoice(true);
+
+            var scene = this.el.sceneEl || this.el;
+            var showHome = () => {
+                if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+                if (this.startExperienceEl) {
+                    this.startButtonState = this.isAppReady ? 'ready' : 'loading';
+                    this.startExperienceEl.disabled = !this.isAppReady;
+                    this.setStartButtonText();
+                }
+                if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
+                this.updateLanguagePanelPosition();
+                this.updateHintKey('hint.scan.search');
+                if (this.homeBgmEnabled) this.playHomeBgm();
+            };
+
+            try {
+                if (scene && scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
+                    if (scene.exitVR) {
+                        scene.exitVR();
+                    } else if (scene.renderer && scene.renderer.xr) {
+                        var session = scene.renderer.xr.getSession();
+                        if (session) session.end();
+                    }
+                    setTimeout(showHome, 300);
+                } else {
+                    showHome();
+                }
+            } catch (error) {
+                console.warn('[Return home] exit AR failed', error);
+                showHome();
             }
-           if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
-            this.updateLanguagePanelPosition();
-            this.updateHintKey('hint.scan.search');
-            if (this.homeBgmEnabled) this.playHomeBgm();
         },
 
         showOctopusFilter: function() {
