@@ -370,7 +370,8 @@
       #reset-placement,
       #return-home,
       #collection-open,
-      #sound-toggle {
+      #sound-toggle,
+      #language-toggle {
         pointer-events: auto;
         min-height: 48px;
         background: rgba(255, 253, 246, 0.7); color: #4f806a;
@@ -384,6 +385,7 @@
       #return-home::before { content: "⌂ "; font-size: 1.1em; }
       #collection-open::before { content: "◇ "; font-size: 1.1em; }
       #sound-toggle::before { content: "♪ "; font-size: 1.1em; }
+      #language-toggle::before { content: "文 "; font-size: 1.02em; }
       .welcome-sound-toggle {
         position: absolute;
         top: 22px;
@@ -402,6 +404,12 @@
         backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
       }
       .welcome-sound-toggle::before { content: "♪ "; }
+      .welcome-language-toggle {
+        position: absolute;
+        top: 22px;
+        right: 136px;
+      }
+      .welcome-language-toggle::before { content: "文 "; }
 
       .mode-btn {
         pointer-events: auto;
@@ -610,7 +618,8 @@
         #reset-placement,
         #return-home,
         #collection-open,
-        #sound-toggle {
+        #sound-toggle,
+        #language-toggle {
           width: 142px;
           height: 46px;
           min-height: 46px;
@@ -680,13 +689,22 @@
         }
         #reset-placement,
         #return-home,
-        #collection-open {
+        #collection-open,
+        #sound-toggle,
+        #language-toggle {
           min-height: 42px;
           padding: 8px 13px;
         }
         .welcome-sound-toggle {
           top: 16px;
           right: 14px;
+          min-height: 42px;
+          padding: 8px 13px;
+          font-size: 14px;
+        }
+        .welcome-language-toggle {
+          top: 16px;
+          right: 112px;
           min-height: 42px;
           padding: 8px 13px;
           font-size: 14px;
@@ -786,6 +804,148 @@
 
       <script>
       const HEDGEHOG_YAW = 180;
+      const BOUNDARY_I18N = {
+        zh: {
+          'lang.toggle': '日本語',
+          'welcome.kicker.zh': '给小朋友的 AR 距离练习',
+          'welcome.kicker.en': 'A gentle AR space-learning toy for children',
+          'welcome.title': '邊界生態箱',
+          'welcome.subtitle': 'The Boundary Terrarium',
+          'welcome.description': '探索小动物喜欢的距离，\n学习慢慢靠近与尊重空间。',
+          'welcome.start': '开始体验',
+          'welcome.loading': '加载中…',
+          'welcome.starting': '正在启动 AR…',
+          'welcome.wait': '继续等待…',
+          'welcome.slow': '资源加载较慢，请稍等或刷新页面。',
+          'welcome.loadingNote': '加载中，请稍等…',
+          'welcome.fallback': '如果没有自动进入，请点击 AR 按钮进入体验。',
+          'welcome.tag.puffer': '需要多一点空间',
+          'welcome.tag.octopus': '退远再甩掉黏液',
+          'welcome.tag.hedgehog': '慢慢靠近才安心',
+          'welcome.motto': '观察 · 理解 · 尊重',
+          'action.reset': '重新放置',
+          'action.home': '返回首页',
+          'action.collection': '边界图鉴',
+          'sound.off': '声音：关',
+          'sound.on': '声音：开',
+          'animal.puffer': '河豚',
+          'animal.octopus': '章鱼',
+          'animal.hedgehog': '刺猬',
+          'mentor.defaultTitle': '你学会了',
+          'mentor.close': '我知道了',
+          'collection.title': '边界图鉴',
+          'collection.subtitle': '把你学会的边界规则收录起来吧',
+          'collection.close': '关闭图鉴',
+          'collection.puffer.type': '柔性边界',
+          'collection.octopus.type': '融合边界',
+          'collection.hedgehog.type': '隐形边界',
+          'collection.puffer.desc': '可以靠近一点，但别挤过头。',
+          'collection.octopus.desc': '太热情时，也要找回彼此的空间。',
+          'collection.hedgehog.desc': '慢慢靠近，等待也是尊重。',
+          'collection.unlearned': '未学习',
+          'collection.learned': '已学习',
+          'hint.scan.search': '找一块平坦的地面，把小动物放下来。',
+          'hint.scan.found': '找到了地面，点一下把小动物放下来。',
+          'hint.scan.hitLoading': '正在启动地面识别，请缓慢移动手机。',
+          'hint.scan.refLoading': '正在建立 AR 坐标，请稍等。',
+          'hint.scan.hitError': '手机无法启动地面识别，请确认浏览器支持 WebXR AR。',
+          'hint.scan.refError': '手机暂时无法建立 AR 地面坐标，请重新进入 AR 或换个浏览器。',
+          'hint.place.again': '换个地方，再把小动物放下来。',
+          'hint.puffer.safe': '可以靠近一点，但别挤到我喔。',
+          'hint.puffer.close': '哎呀，你太近啦，我被挤扁了！',
+          'hint.puffer.back': '退开一点，我就能慢慢弹回来。',
+          'hint.puffer.recover': '这样刚刚好，我们都舒服多了。',
+          'hint.octopus.safe': '我很热情，靠近了可能会黏住你喔。',
+          'hint.octopus.sticky': '哎呀，我太热情了，一下子黏住你了！',
+          'hint.octopus.tooClose': '现在太近了，先退远一点，找回你的空间。',
+          'hint.octopus.ready': '很好，现在可以甩一甩，把黏液甩掉了。',
+          'hint.octopus.cooldown': '我们拉开一点距离，就会更自在。',
+          'hint.octopus.motionMissing': '没有检测到晃动权限，请点章鱼按钮重新授权。',
+          'hint.hedgehog.safe': '别急，慢慢来，我会更安心。',
+          'hint.hedgehog.stepBackFirst': '先退后一点，再慢慢靠近我。',
+          'hint.hedgehog.alarm': '你太快了，我有点害怕！先退后一点。',
+          'hint.hedgehog.moreSpace': '还需要再退远一点，给我一点空间。',
+          'hint.hedgehog.wait': '很好，请保持距离，安静等我一下。',
+          'hint.hedgehog.slowSuccess': '你靠近得很温柔，我觉得安心多了。',
+          'hint.hedgehog.friend': '慢慢靠近，真的会让人更放心。',
+          'lesson.puffer.title': '你学会了：柔性边界',
+          'lesson.puffer.body': '河豚可以让你靠近一点，\n但太近还是会被挤到。\n退后一点，是一种温柔的照顾。',
+          'lesson.octopus.title': '你学会了：融合边界',
+          'lesson.octopus.body': '章鱼很热情，一靠近就容易黏上来。\n当空间混在一起时，先退远一点，\n才能重新找回舒服的距离。',
+          'lesson.hedgehog.title': '你学会了：隐形边界',
+          'lesson.hedgehog.body': '刺猬的边界看不见，\n但它真的存在。\n慢慢靠近、安静等待，\n会让谨慎的朋友更安心。'
+        },
+        ja: {
+          'lang.toggle': '中文',
+          'welcome.kicker.zh': '子どものための AR 距離レッスン',
+          'welcome.kicker.en': 'A gentle AR space-learning toy for children',
+          'welcome.title': '境界テラリウム',
+          'welcome.subtitle': 'The Boundary Terrarium',
+          'welcome.description': '小さな生きものが好きな距離を探して、\nゆっくり近づくことと空間を大切にすることを学ぼう。',
+          'welcome.start': '体験をはじめる',
+          'welcome.loading': '読み込み中…',
+          'welcome.starting': 'ARを起動中…',
+          'welcome.wait': 'もう少し待ってね…',
+          'welcome.slow': '読み込みに時間がかかっています。少し待つか、ページを更新してください。',
+          'welcome.loadingNote': '読み込み中です。少し待ってね…',
+          'welcome.fallback': '自動で入れない場合は、ARボタンを押してください。',
+          'welcome.tag.puffer': 'もう少し空間が必要',
+          'welcome.tag.octopus': '離れてから粘液を外す',
+          'welcome.tag.hedgehog': 'ゆっくり近づくと安心',
+          'welcome.motto': '観察 · 理解 · 尊重',
+          'action.reset': '置き直す',
+          'action.home': 'ホームへ',
+          'action.collection': '境界図鑑',
+          'sound.off': '音：オフ',
+          'sound.on': '音：オン',
+          'animal.puffer': 'フグ',
+          'animal.octopus': 'タコ',
+          'animal.hedgehog': 'ハリネズミ',
+          'mentor.defaultTitle': '学んだこと',
+          'mentor.close': 'わかった',
+          'collection.title': '境界図鑑',
+          'collection.subtitle': '学んだ境界のルールを集めよう',
+          'collection.close': '図鑑を閉じる',
+          'collection.puffer.type': 'やわらかい境界',
+          'collection.octopus.type': 'くっつきやすい境界',
+          'collection.hedgehog.type': '見えない境界',
+          'collection.puffer.desc': '少し近づいてもいいけれど、近すぎないでね。',
+          'collection.octopus.desc': '近すぎる熱心さには、心地よい距離も必要。',
+          'collection.hedgehog.desc': 'ゆっくり近づくこと、待つことも尊重です。',
+          'collection.unlearned': '未学習',
+          'collection.learned': '学習済み',
+          'hint.scan.search': '平らな床を探して、小さな生きものを置いてみよう。',
+          'hint.scan.found': '床を見つけたよ。タップして置いてみよう。',
+          'hint.scan.hitLoading': '床の認識を起動中です。ゆっくりスマホを動かしてね。',
+          'hint.scan.refLoading': 'ARの座標を準備しています。少し待ってね。',
+          'hint.scan.hitError': '床の認識を開始できません。WebXR AR対応ブラウザか確認してください。',
+          'hint.scan.refError': 'ARの座標を作れません。ARに入り直すか、別のブラウザを試してください。',
+          'hint.place.again': '別の場所に、もう一度置いてみよう。',
+          'hint.puffer.safe': '少し近づいてもいいよ。でも、ぎゅっとしないでね。',
+          'hint.puffer.close': 'あっ、近すぎるよ。つぶれちゃった！',
+          'hint.puffer.back': '少し下がると、もとに戻れるよ。',
+          'hint.puffer.recover': 'この距離なら、どちらも安心だね。',
+          'hint.octopus.safe': 'ぼくはとても人なつっこいよ。近すぎると、くっついちゃうかも。',
+          'hint.octopus.sticky': 'あっ、近すぎてくっついちゃった！',
+          'hint.octopus.tooClose': '今は近すぎるよ。少し離れて、自分の場所を取り戻そう。',
+          'hint.octopus.ready': 'いいね。この距離なら、ふって外せるよ。',
+          'hint.octopus.cooldown': '少し距離をとると、もっと楽になるね。',
+          'hint.octopus.motionMissing': 'ゆれを検出できません。タコボタンを押してもう一度許可してください。',
+          'hint.hedgehog.safe': 'あわてないで。ゆっくり来てくれると安心するよ。',
+          'hint.hedgehog.stepBackFirst': 'まず少し下がって、それからゆっくり近づいてね。',
+          'hint.hedgehog.alarm': 'ちょっと早すぎて、びっくりしたよ。少し下がってね。',
+          'hint.hedgehog.moreSpace': 'もう少し離れて、ぼくの場所を作ってね。',
+          'hint.hedgehog.wait': 'いいね。その距離で、少し待ってね。',
+          'hint.hedgehog.slowSuccess': 'やさしく近づいてくれたから、安心できたよ。',
+          'hint.hedgehog.friend': 'ゆっくり近づくと、もっと安心できるね。',
+          'lesson.puffer.title': '学んだこと：やわらかい境界',
+          'lesson.puffer.body': 'フグは少し近づいても大丈夫。\nでも近すぎると、つぶれてしまいます。\n少し下がることも、やさしい思いやりです。',
+          'lesson.octopus.title': '学んだこと：くっつきやすい境界',
+          'lesson.octopus.body': 'タコはとても人なつっこい生きものです。\n近すぎると、空間がくっついてしまいます。\n少し離れることで、心地よい距離を取り戻せます。',
+          'lesson.hedgehog.title': '学んだこと：見えない境界',
+          'lesson.hedgehog.body': 'ハリネズミの境界は見えません。\nでも、ちゃんと存在しています。\nゆっくり近づき、静かに待つことで、\n慎重な友だちも安心できます。'
+        }
+      };
 
       AFRAME.registerComponent('ar-game-manager', {
         schema: {
@@ -793,6 +953,9 @@
         },
         init: function () {
           this.mode = 'pufferfish';
+          this.lang = localStorage.getItem('boundaryTerrariumLang') || 'zh';
+          if (this.lang !== 'zh' && this.lang !== 'ja') this.lang = 'zh';
+          this.i18n = BOUNDARY_I18N;
           this.isSpawned = false;
           this.spawnPosition = null; 
           this.groundYOffset = -0.08;
@@ -831,6 +994,7 @@
           this.collectionCloseEl = document.getElementById('collection-close');
           this.soundToggleEl = document.getElementById('sound-toggle');
           this.soundToggleEls = Array.from(document.querySelectorAll('.sound-toggle'));
+          this.languageToggleEls = Array.from(document.querySelectorAll('.language-toggle'));
           this.placementDebugEl = document.getElementById('placement-debug');
           this.placementDebugBodyEl = document.getElementById('placement-debug-body');
           this.placementDebugToggleEl = document.getElementById('placement-debug-toggle');
@@ -848,6 +1012,8 @@
           this.reticlePosition = null;
           this.correctedAnchorPosition = null;
           this.currentHint = '';
+          this.currentHintKey = '';
+          this.currentHintOptions = {};
           this.hintLockedUntil = 0;
           this.pufferfishHintState = 'safe';
           this.wasPufferfishPressed = false;
@@ -861,6 +1027,7 @@
           this.hedgehogHintTimer = null;
           this.hedgehogSafeTimer = null;
           this.learningCardTimer = null;
+          this.currentLearningCardType = '';
           this.completedLessons = {
             pufferfish: false,
             octopus: false,
@@ -948,7 +1115,11 @@
              button.addEventListener('beforexrselect', e => e.preventDefault());
              button.addEventListener('click', () => this.toggleSound());
           });
-          this.updateSoundToggle();
+          this.languageToggleEls.forEach(button => {
+             button.addEventListener('beforexrselect', e => e.preventDefault());
+             button.addEventListener('click', () => this.toggleLanguage());
+          });
+          this.applyLanguage();
           this.updateCollectionUI();
           if (this.startExperienceEl && this.welcomeOverlayEl) {
              this.setStartButtonLoading();
@@ -965,8 +1136,9 @@
              this.arStartFallbackTimer = null;
              this.stopBgm();
              if (this.startExperienceEl) {
+                this.startButtonState = 'ready';
                 this.startExperienceEl.disabled = false;
-                this.startExperienceEl.innerText = '开始体验';
+                this.setStartButtonText();
              }
              if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
           });
@@ -1018,11 +1190,14 @@
              this.faceVisualsToCameraOnce();
              this.showAnimal(this.mode);
              if (this.mode === 'hedgehog') this.hedgehogInteractionArmed = false;
-             this.updateHint(this.getSafeHint(this.mode), { speak: true, lockMs: 2200 });
+             this.updateHintKey(this.getSafeHintKey(this.mode), { speak: true, lockMs: 2200 });
           });
 
           this.el.addEventListener('hint-message', (e) => {
              if (e.detail && e.detail.message) this.updateHint(e.detail.message);
+          });
+          this.el.addEventListener('hint-key', (e) => {
+             if (e.detail && e.detail.key) this.updateHintKey(e.detail.key, e.detail.options || {});
           });
 
           this.switchMode(this.mode);
@@ -1148,10 +1323,114 @@
            }
         },
 
+        t: function(key) {
+           var current = (this.i18n && this.i18n[this.lang]) || {};
+           var zh = (this.i18n && this.i18n.zh) || {};
+           return current[key] || zh[key] || key;
+        },
+
+        setText: function(selector, key) {
+           var el = document.querySelector(selector);
+           if (el) el.innerText = this.t(key);
+        },
+
+        setLanguage: function(lang) {
+           if (lang !== 'zh' && lang !== 'ja') return;
+           this.lang = lang;
+           localStorage.setItem('boundaryTerrariumLang', lang);
+           this.applyLanguage();
+           if (this.currentHintKey) this.updateHintKey(this.currentHintKey, Object.assign({}, this.currentHintOptions || {}, { force: true, speak: false }));
+           if (this.mentorCardEl && !this.mentorCardEl.classList.contains('hidden') && this.currentLearningCardType) {
+              this.renderLearningCard(this.currentLearningCardType);
+           }
+           this.updateCollectionUI();
+        },
+
+        toggleLanguage: function() {
+           this.setLanguage(this.lang === 'zh' ? 'ja' : 'zh');
+        },
+
+        updateLanguageToggle: function() {
+           if (!this.languageToggleEls) return;
+           this.languageToggleEls.forEach(button => {
+              button.innerText = this.t('lang.toggle');
+           });
+        },
+
+        applyLanguage: function() {
+           var brand = document.querySelector('.welcome-brand span:last-child');
+           if (brand) brand.innerHTML = this.t('welcome.kicker.zh') + '<br>' + this.t('welcome.kicker.en');
+           this.setText('.welcome-copy h1', 'welcome.title');
+           this.setText('.welcome-copy h2', 'welcome.subtitle');
+           var desc = document.querySelector('.welcome-copy p');
+           if (desc) desc.innerHTML = this.t('welcome.description').replace(/\n/g, '<br>');
+           this.setStartButtonText();
+           this.setText('.welcome-tag.space', 'welcome.tag.puffer');
+           this.setText('.welcome-tag.repair', 'welcome.tag.octopus');
+           this.setText('.welcome-tag.slow', 'welcome.tag.hedgehog');
+           this.setText('.welcome-note', 'welcome.motto');
+           var reset = document.getElementById('reset-placement');
+           if (reset) reset.innerText = this.t('action.reset');
+           var home = document.getElementById('return-home');
+           if (home) home.innerText = this.t('action.home');
+           if (this.collectionOpenEl) this.collectionOpenEl.innerText = this.t('action.collection');
+           var pufferBtn = document.querySelector('#btn-pufferfish span');
+           var octopusBtn = document.querySelector('#btn-octopus span');
+           var hedgehogBtn = document.querySelector('#btn-hedgehog span');
+           if (pufferBtn) pufferBtn.innerText = this.t('animal.puffer');
+           if (octopusBtn) octopusBtn.innerText = this.t('animal.octopus');
+           if (hedgehogBtn) hedgehogBtn.innerText = this.t('animal.hedgehog');
+           this.updateImageAlts();
+           if (this.mentorCardCloseEl) this.mentorCardCloseEl.innerText = this.t('mentor.close');
+           if (!this.currentLearningCardType && this.mentorCardTitleEl) this.mentorCardTitleEl.innerText = this.t('mentor.defaultTitle');
+           this.setText('.collection-title', 'collection.title');
+           this.setText('.collection-subtitle', 'collection.subtitle');
+           if (this.collectionCloseEl) this.collectionCloseEl.innerText = this.t('collection.close');
+           this.updateLanguageToggle();
+           this.updateSoundToggle();
+           this.updateCollectionStaticText();
+        },
+
+        updateImageAlts: function() {
+           var names = {
+              pufferfish: this.t('animal.puffer'),
+              octopus: this.t('animal.octopus'),
+              hedgehog: this.t('animal.hedgehog')
+           };
+           document.querySelectorAll('img[src$="cute-puffer.png"]').forEach(img => img.alt = names.pufferfish);
+           document.querySelectorAll('img[src$="cute-octopus.png"]').forEach(img => img.alt = names.octopus);
+           document.querySelectorAll('img[src$="cute-hedgehog.png"]').forEach(img => img.alt = names.hedgehog);
+        },
+
+        updateCollectionStaticText: function() {
+           var data = {
+              pufferfish: ['animal.puffer', 'collection.puffer.type', 'collection.puffer.desc'],
+              octopus: ['animal.octopus', 'collection.octopus.type', 'collection.octopus.desc'],
+              hedgehog: ['animal.hedgehog', 'collection.hedgehog.type', 'collection.hedgehog.desc']
+           };
+           Object.keys(data).forEach(type => {
+              var card = document.querySelector('[data-collection-card="' + type + '"]');
+              if (!card) return;
+              var title = card.querySelector('h3');
+              var boundary = card.querySelector('.collection-type');
+              var desc = card.querySelector('.collection-desc');
+              if (title) title.innerText = this.t(data[type][0]);
+              if (boundary) boundary.innerText = this.t(data[type][1]);
+              if (desc) desc.innerText = this.t(data[type][2]);
+           });
+        },
+
+        setStartButtonText: function() {
+           if (!this.startExperienceEl) return;
+           var state = this.startButtonState || (this.isAppReady ? 'ready' : 'loading');
+           var key = state === 'starting' ? 'welcome.starting' : state === 'loading' ? 'welcome.loading' : state === 'wait' ? 'welcome.wait' : 'welcome.start';
+           this.startExperienceEl.innerText = this.t(key);
+        },
+
         updateSoundToggle: function() {
            if (!this.soundToggleEls) return;
            this.soundToggleEls.forEach(button => {
-              button.innerText = this.soundEnabled ? '声音：开' : '声音：关';
+              button.innerText = this.soundEnabled ? this.t('sound.on') : this.t('sound.off');
            });
         },
 
@@ -1318,8 +1597,9 @@
 
         setStartButtonLoading: function() {
            if (!this.startExperienceEl) return;
+           this.startButtonState = 'loading';
            this.startExperienceEl.disabled = true;
-           this.startExperienceEl.innerText = '加载中…';
+           this.setStartButtonText();
            if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
         },
 
@@ -1329,8 +1609,9 @@
            if (this.appReadyFallbackTimer) clearTimeout(this.appReadyFallbackTimer);
            this.appReadyFallbackTimer = null;
            if (this.startExperienceEl) {
+              this.startButtonState = 'ready';
               this.startExperienceEl.disabled = false;
-              this.startExperienceEl.innerText = '开始体验';
+              this.setStartButtonText();
            }
            if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
         },
@@ -1350,8 +1631,11 @@
 
            this.appReadyFallbackTimer = setTimeout(() => {
               if (this.isAppReady) return;
-              if (this.startExperienceEl) this.startExperienceEl.innerText = '继续等待…';
-              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '资源加载较慢，请稍等或刷新页面。';
+              if (this.startExperienceEl) {
+                 this.startButtonState = 'wait';
+                 this.setStartButtonText();
+              }
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = this.t('welcome.slow');
            }, 8000);
         },
 
@@ -1359,14 +1643,15 @@
            if (this.isStartingAR) return;
            if (!this.isAppReady) {
               this.setStartButtonLoading();
-              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '加载中，请稍等…';
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = this.t('welcome.loadingNote');
               return;
            }
            var scene = this.el.sceneEl || this.el;
            this.isStartingAR = true;
            if (this.startExperienceEl) {
+              this.startButtonState = 'starting';
               this.startExperienceEl.disabled = true;
-              this.startExperienceEl.innerText = '正在启动 AR…';
+              this.setStartButtonText();
            }
            if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
            var finish = () => {
@@ -1375,8 +1660,9 @@
               this.arStartFallbackTimer = null;
               if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.add('hidden');
               if (this.startExperienceEl) {
+                 this.startButtonState = 'ready';
                  this.startExperienceEl.disabled = false;
-                 this.startExperienceEl.innerText = '开始体验';
+                 this.setStartButtonText();
               }
            };
            var fallback = () => {
@@ -1384,11 +1670,12 @@
               if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
               this.arStartFallbackTimer = null;
               if (this.startExperienceEl) {
+                 this.startButtonState = 'ready';
                  this.startExperienceEl.disabled = false;
-                 this.startExperienceEl.innerText = '开始体验';
+                 this.setStartButtonText();
               }
-              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '如果没有自动进入，请点击 AR 按钮进入体验。';
-              this.updateHint('如果没有自动进入，请点击 AR 按钮进入体验。');
+              if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = this.t('welcome.fallback');
+              this.updateHint(this.t('welcome.fallback'));
            };
 
            this.arStartFallbackTimer = setTimeout(() => {
@@ -1473,9 +1760,9 @@
           var currentName = modeNames[newMode];
 
           if (!this.isSpawned) {
-              this.updateHint('找一块平坦的地面，把小动物放下来。');
+              this.updateHintKey('hint.scan.search');
           } else {
-              this.updateHint(this.getSafeHint(newMode));
+              this.updateHintKey(this.getSafeHintKey(newMode));
           }
         },
 
@@ -1483,7 +1770,7 @@
           if (!this.isSpawned || !this.spawnPosition) {
              if (this.uiEl) this.uiEl.innerText = 'Scan & TAP Space';
              // [修改点 3] 仅在文字为空时才设定初始引导语，不每帧强制覆盖
-             if (this.instructionEl && !this.instructionEl.innerText) this.updateHint('找一块平坦的地面，把小动物放下来。');
+             if (this.instructionEl && !this.instructionEl.innerText) this.updateHintKey('hint.scan.search');
              return;
           }
 
@@ -1534,10 +1821,10 @@
                  }
                  if (this.pufferfishHintState !== 'close') {
                     this.pufferfishHintState = 'close';
-                    this.updateHint('哎呀，你太近啦，我被挤扁了！', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                    this.updateHintKey('hint.puffer.close', { lockMs: 3000, priority: 'important', force: true, speak: true });
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = setTimeout(() => {
-                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHint('退开一点，我就能慢慢弹回来。', { lockMs: 3000 });
+                       if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHintKey('hint.puffer.back', { lockMs: 3000 });
                     }, 3000);
                  }
               } else {
@@ -1551,13 +1838,13 @@
                     this.pufferfishHintState = 'recovering';
                     if (this.pufferfishHintTimer) clearTimeout(this.pufferfishHintTimer);
                     this.pufferfishHintTimer = null;
-                    this.updateHint('这样刚刚好，我们都舒服多了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                    this.updateHintKey('hint.puffer.recover', { lockMs: 3000, priority: 'important', force: true, speak: true });
                     this.showLearningCard('pufferfish');
                     if (this.pufferfishSafeTimer) clearTimeout(this.pufferfishSafeTimer);
                     this.pufferfishSafeTimer = setTimeout(() => {
                        if (this.mode === 'pufferfish' && this.pufferfishHintState === 'recovering') {
                           this.pufferfishHintState = 'safe';
-                          this.updateHint(this.getSafeHint('pufferfish'));
+                          this.updateHintKey('hint.puffer.safe');
                        }
                     }, 1400);
                  }
@@ -1566,7 +1853,7 @@
 
             case 'octopus':
               if (this.isOctopusAttached && (this.lastMotionTime === 0 || performance.now() - this.lastMotionTime > 2000)) {
-                 this.updateHint('没有检测到晃动权限，请点章鱼按钮重新授权。');
+                 this.updateHintKey('hint.octopus.motionMissing');
               }
               if (this.octopusState !== 'triggered' && this.octopusState !== 'stuckTooClose' && this.octopusState !== 'readyToShake') {
                  oMesh.position.lerp(new THREE.Vector3(0, 0, 0), 0.1);
@@ -1593,11 +1880,11 @@
                   this.hedgehogTimer = null;
                   this.hedgehogState = 'alarm';
                   this.hedgehogAlarmHintState = 'retreat';
-                  this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
+                  this.updateHintKey('hint.hedgehog.moreSpace', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
               }
 
               if (this.hedgehogState === 'idle' && surfaceDistance < 0.6 && !this.hedgehogInteractionArmed) {
-                  this.updateHint('先退后一点，再慢慢靠近我。', { lockMs: 2500, priority: 'important', force: true });
+                  this.updateHintKey('hint.hedgehog.stepBackFirst', { lockMs: 2500, priority: 'important', force: true });
               }
               else if (this.hedgehogState === 'idle' && this.hedgehogInteractionArmed === true && surfaceDistance < 0.6 && approachVelocity > 0.3) {
                   this.enterHedgehogAlarm();
@@ -1606,7 +1893,7 @@
                   this.hedgehogSlowApproachPraised = true;
                   console.log('[SFX event] hedgehog slow success');
                   this.playSfx('hedgehogSlowSuccess');
-                  this.updateHint('你靠近得很温柔，我觉得安心多了。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
+                  this.updateHintKey('hint.hedgehog.slowSuccess', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
                   this.showLearningCard('hedgehog');
               }
               else if (this.hedgehogState === 'alarm' && surfaceDistance >= 0.8) {
@@ -1614,7 +1901,7 @@
               }
               else if (this.hedgehogState === 'alarm' && surfaceDistance < 0.8 && this.hedgehogAlarmHintState === 'alarm' && performance.now() >= this.hintLockedUntil) {
                   this.hedgehogAlarmHintState = 'retreat';
-                  this.updateHint('还需要再退远一点，给我一点空间。', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
+                  this.updateHintKey('hint.hedgehog.moreSpace', { lockMs: 2500, priority: 'important', force: true, tone: 'warning' });
               }
               break;
           }
@@ -1675,6 +1962,8 @@
             var opts = options || {};
             if (this.hintLockedUntil > now && opts.priority !== 'important' && opts.force !== true) return;
             if (!this.instructionEl) return;
+            this.currentHintKey = opts.hintKey || '';
+            this.currentHintOptions = opts;
             var tone = opts.tone || 'normal';
             if (this.currentHint === message) {
                this.setHintTone(tone);
@@ -1688,6 +1977,11 @@
             if (opts.speak === true) this.speakHint(message);
         },
 
+        updateHintKey: function(key, options) {
+            var opts = Object.assign({}, options || {}, { hintKey: key });
+            this.updateHint(this.t(key), opts);
+        },
+
         enterHedgehogAlarm: function() {
             if (this.hedgehogState === 'alarm' || this.hedgehogState === 'waiting' || this.hedgehogState === 'friend') return;
             this.hedgehogState = 'alarm';
@@ -1698,7 +1992,7 @@
             console.log('[SFX event] hedgehog alarm');
             this.playSfx('hedgehogAlarm');
             this.setGltfMaterial(this.visuals.hedgehog, { color: '#FF8A8A', emissive: '#551111', wireframe: false });
-            this.updateHint('你太快了，我有点害怕！先退后一点。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'warning' });
+            this.updateHintKey('hint.hedgehog.alarm', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'warning' });
         },
 
         enterHedgehogWaiting: function() {
@@ -1708,7 +2002,7 @@
             this.hedgehogWaitStartedAt = performance.now();
             if (this.hedgehogHintTimer) clearTimeout(this.hedgehogHintTimer);
             this.hedgehogHintTimer = null;
-            this.updateHint('很好，请保持距离，安静等我一下。', { lockMs: 3000, priority: 'important', force: true, tone: 'warning' });
+            this.updateHintKey('hint.hedgehog.wait', { lockMs: 3000, priority: 'important', force: true, tone: 'warning' });
             if (this.hedgehogTimer) clearTimeout(this.hedgehogTimer);
             this.hedgehogTimer = setTimeout(() => {
                if (this.mode === 'hedgehog' && this.hedgehogState === 'waiting' && this.currentSurfaceDistance >= 0.8) {
@@ -1723,7 +2017,7 @@
             this.restoreHedgehogMaterial();
             console.log('[SFX event] hedgehog calm');
             this.playSfx('hedgehogCalm');
-            this.updateHint('慢慢靠近，真的会让人更放心。', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
+            this.updateHintKey('hint.hedgehog.friend', { lockMs: 3000, priority: 'important', force: true, speak: true, tone: 'success' });
             this.showLearningCard('hedgehog');
             if (this.hedgehogSafeTimer) clearTimeout(this.hedgehogSafeTimer);
             this.hedgehogSafeTimer = setTimeout(() => {
@@ -1731,37 +2025,30 @@
                   this.hedgehogState = 'idle';
                   this.hedgehogAlarmHintState = 'idle';
                   this.hedgehogSlowApproachPraised = false;
-                  this.updateHint(this.getSafeHint('hedgehog'));
+                  this.updateHintKey('hint.hedgehog.safe');
                }
             }, 1600);
         },
 
         showLearningCard: function(type) {
             if (!this.completedLessons || this.completedLessons[type]) return;
-            var lessons = {
-              pufferfish: {
-                title: '你学会了：柔性边界',
-                body: '河豚可以让你靠近一点，\n但太近还是会被挤到。\n退后一点，是一种温柔的照顾。'
-              },
-              octopus: {
-                title: '你学会了：融合边界',
-                body: '章鱼很热情，一靠近就容易黏上来。\n当空间混在一起时，先退远一点，\n才能重新找回舒服的距离。'
-              },
-              hedgehog: {
-                title: '你学会了：隐形边界',
-                body: '刺猬的边界看不见，\n但它真的存在。\n慢慢靠近、安静等待，\n会让谨慎的朋友更安心。'
-              }
-            };
-            var lesson = lessons[type];
-            if (!lesson || !this.mentorCardEl) return;
+            if (!this.mentorCardEl) return;
             this.completedLessons[type] = true;
+            this.currentLearningCardType = type;
             this.playSfx('learningCardOpen');
-            if (this.mentorCardTitleEl) this.mentorCardTitleEl.innerText = lesson.title;
-            if (this.mentorCardBodyEl) this.mentorCardBodyEl.innerText = lesson.body;
+            this.renderLearningCard(type);
             this.mentorCardEl.classList.remove('hidden');
             this.unlockCollection(type);
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
             this.learningCardTimer = null;
+        },
+
+        renderLearningCard: function(type) {
+            if (!type) return;
+            var keyBase = type === 'pufferfish' ? 'lesson.puffer' : type === 'octopus' ? 'lesson.octopus' : 'lesson.hedgehog';
+            if (this.mentorCardTitleEl) this.mentorCardTitleEl.innerText = this.t(keyBase + '.title');
+            if (this.mentorCardBodyEl) this.mentorCardBodyEl.innerText = this.t(keyBase + '.body');
+            if (this.mentorCardCloseEl) this.mentorCardCloseEl.innerText = this.t('mentor.close');
         },
 
         hideLearningCard: function() {
@@ -1769,6 +2056,7 @@
             if (this.learningCardTimer) clearTimeout(this.learningCardTimer);
             this.learningCardTimer = null;
             if (this.mentorCardEl) this.mentorCardEl.classList.add('hidden');
+            this.currentLearningCardType = '';
         },
 
         loadCollectionProgress: function() {
@@ -1810,13 +2098,14 @@
 
         updateCollectionUI: function() {
             if (!this.collectionProgress) return;
+            this.updateCollectionStaticText();
             Object.keys(this.collectionProgress).forEach(type => {
                 var card = document.querySelector('[data-collection-card="' + type + '"]');
                 if (!card) return;
                 var learned = !!this.collectionProgress[type];
                 card.classList.toggle('learned', learned);
                 var status = card.querySelector('.collection-status');
-                if (status) status.innerText = learned ? '已学习' : '未学习';
+                if (status) status.innerText = learned ? this.t('collection.learned') : this.t('collection.unlearned');
             });
         },
 
@@ -1854,10 +2143,17 @@
         },
 
         getSafeHint: function(mode) {
-            if (mode === 'pufferfish') return '可以靠近一点，但别挤到我喔。';
-            if (mode === 'octopus') return '我很热情，靠近了可能会黏住你喔。';
-            if (mode === 'hedgehog') return '别急，慢慢来，我会更安心。';
-            return '慢慢靠近，看看它喜欢多大的空间。';
+            if (mode === 'pufferfish') return this.t('hint.puffer.safe');
+            if (mode === 'octopus') return this.t('hint.octopus.safe');
+            if (mode === 'hedgehog') return this.t('hint.hedgehog.safe');
+            return this.t('hint.scan.search');
+        },
+
+        getSafeHintKey: function(mode) {
+            if (mode === 'pufferfish') return 'hint.puffer.safe';
+            if (mode === 'octopus') return 'hint.octopus.safe';
+            if (mode === 'hedgehog') return 'hint.hedgehog.safe';
+            return 'hint.scan.search';
         },
 
         setOctopusHintState: function(state) {
@@ -1868,23 +2164,23 @@
             this.octopusHintState = state;
 
             if (state === 'safe') {
-                this.updateHint(this.getSafeHint('octopus'));
+                this.updateHintKey('hint.octopus.safe');
                 return;
             }
             if (state === 'triggered') {
-                this.updateHint('哎呀，我太热情了，一下子黏住你了！', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                this.updateHintKey('hint.octopus.sticky', { lockMs: 3000, priority: 'important', force: true, speak: true });
                 return;
             }
             if (state === 'stuckTooClose') {
-                this.updateHint('现在太近了，先退远一点，找回你的空间。', { lockMs: 3000, priority: 'important', force: true });
+                this.updateHintKey('hint.octopus.tooClose', { lockMs: 3000, priority: 'important', force: true });
                 return;
             }
             if (state === 'readyToShake') {
-                this.updateHint('很好，现在可以甩一甩，把黏液甩掉了。', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                this.updateHintKey('hint.octopus.ready', { lockMs: 3000, priority: 'important', force: true, speak: true });
                 return;
             }
             if (state === 'cooldown') {
-                this.updateHint('我们拉开一点距离，就会更自在。', { lockMs: 3000, priority: 'important', force: true, speak: true });
+                this.updateHintKey('hint.octopus.cooldown', { lockMs: 3000, priority: 'important', force: true, speak: true });
             }
         },
 
@@ -1991,7 +2287,7 @@
                 this.visuals.octopus.object3D.scale.copy(this.visualScales.octopusNormal);
             }
             this.restoreHedgehogMaterial();
-            this.updateHint('换个地方，再把小动物放下来。');
+            this.updateHintKey('hint.place.again');
             this.el.sceneEl.emit('placement-reset');
         },
 
@@ -2003,11 +2299,12 @@
             this.arStartFallbackTimer = null;
             if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
             if (this.startExperienceEl) {
+                this.startButtonState = this.isAppReady ? 'ready' : 'loading';
                 this.startExperienceEl.disabled = !this.isAppReady;
-                this.startExperienceEl.innerText = this.isAppReady ? '开始体验' : '加载中…';
+                this.setStartButtonText();
             }
             if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
-            this.updateHint('找一块平坦的地面，把小动物放下来。');
+            this.updateHintKey('hint.scan.search');
             if (this.soundEnabled) this.playBgm();
         },
 
@@ -2169,7 +2466,7 @@
               console.log('[AR] hitTestSource ready');
             }).catch((err) => {
               console.warn('[AR] hitTestSource failed', err);
-              this.emitHint('手机无法启动地面识别，请确认浏览器支持 WebXR AR。');
+              this.emitHintKey('hint.scan.hitError');
             });
 
             session.requestReferenceSpace('local-floor').then((space) => {
@@ -2187,7 +2484,7 @@
               }
             }).catch((err) => {
               console.warn('[AR] refSpace failed', err);
-              this.emitHint('手机暂时无法建立 AR 地面坐标，请重新进入 AR 或换个浏览器。');
+              this.emitHintKey('hint.scan.refError');
             });
 
             session.addEventListener('end', () => {
@@ -2242,12 +2539,17 @@
           this.lastHintMessage = message;
           this.el.sceneEl.emit('hint-message', { message: message });
         },
-        emitStatusHint: function(status, message) {
+        emitHintKey: function(key, options) {
+          if (this.lastHintMessage === key) return;
+          this.lastHintMessage = key;
+          this.el.sceneEl.emit('hint-key', { key: key, options: options || {} });
+        },
+        emitStatusHint: function(status, key) {
           var now = performance.now();
           if (this.reticleStatus === status && now - this.lastReticleStatusTime < 1000) return;
           this.reticleStatus = status;
           this.lastReticleStatusTime = now;
-          this.emitHint(message);
+          this.emitHintKey(key);
         },
         tick: function () {
           if (this.hasPlaced) return; // [修复一] 已放置，停止光圈更新
@@ -2260,13 +2562,13 @@
 
           if (!xrHitTestSource) {
             this.el.setAttribute('visible', 'false');
-            this.emitStatusHint('hit-test-loading', '正在启动地面识别，请缓慢移动手机。');
+            this.emitStatusHint('hit-test-loading', 'hint.scan.hitLoading');
             return;
           }
 
           if (!refSpace) {
             this.el.setAttribute('visible', 'false');
-            this.emitStatusHint('ref-space-loading', '正在建立 AR 坐标，请稍等。');
+            this.emitStatusHint('ref-space-loading', 'hint.scan.refLoading');
             return;
           }
 
@@ -2278,11 +2580,11 @@
               this.el.setAttribute('visible', 'true');
               this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
               // [\u65b0\u589e] \u6293\u5230\u5730\u9762\u65f6\uff0c\u7ed9\u4e88\u5f3a\u70c8\u7684\u7eff\u8272\u89c6\u89c9\u786e\u8ba4
-              if (!this.hasPlaced) this.emitStatusHint('hit-found', '找到了地面，点一下把小动物放下来。');
+              if (!this.hasPlaced) this.emitStatusHint('hit-found', 'hint.scan.found');
             } else {
               this.el.setAttribute('visible', 'false');
               // [\u65b0\u589e] \u4e22\u5931\u5e73\u9762\u65f6\u5f15\u5bfc\u7528\u6237\u79fb\u52a8\u624b\u673a\u5bfb\u627e\u7279\u5f81\u70b9
-              if (!this.hasPlaced) this.emitStatusHint('hit-searching', '找一块平坦的地面，把小动物放下来。');
+              if (!this.hasPlaced) this.emitStatusHint('hit-searching', 'hint.scan.search');
             }
           }
         }
@@ -2294,6 +2596,7 @@
     <div id="ar-ui-layer">
       <div id="welcome-overlay">
         <button id="welcome-sound-toggle" class="sound-toggle welcome-sound-toggle" type="button">声音：关</button>
+        <button id="welcome-language-toggle" class="language-toggle welcome-language-toggle" type="button">日本語</button>
         <section class="welcome-shell" aria-label="邊界生態箱開始畫面">
           <div class="welcome-copy">
             <div class="welcome-brand">
@@ -2338,6 +2641,7 @@
         <button id="return-home">返回首页</button>
         <button id="collection-open">边界图鉴</button>
         <button id="sound-toggle" class="sound-toggle">声音：关</button>
+        <button id="language-toggle" class="language-toggle">日本語</button>
       </div>
       <div id="placement-debug">
         <button id="placement-debug-toggle">DEBUG</button>
