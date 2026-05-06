@@ -1985,7 +1985,8 @@
               }
               var reticleEl = document.getElementById('reticle');
               if (reticleEl && reticleEl.components && reticleEl.components['ar-hit-test-placer']) {
-                 reticleEl.components['ar-hit-test-placer'].scheduleHitTestInit(80);
+                 reticleEl.components['ar-hit-test-placer'].forceStopHitTest(false);
+                 reticleEl.components['ar-hit-test-placer'].scheduleHitTestInit(120);
               }
            };
            var fallback = () => {
@@ -2009,10 +2010,6 @@
            try {
               if (scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
                  finish();
-                 var reticleEl = document.getElementById('reticle');
-                 if (reticleEl && reticleEl.components && reticleEl.components['ar-hit-test-placer']) {
-                    reticleEl.components['ar-hit-test-placer'].scheduleHitTestInit(80);
-                 }
                  return;
               }
               var enterAR = scene.enterAR || scene.enterVR;
@@ -2646,40 +2643,74 @@
         },
 
         returnToHome: function() {
+            var scene = this.el.sceneEl || this.el;
+            var reticleEl = document.getElementById('reticle');
+            var reticleComp = reticleEl && reticleEl.components ? reticleEl.components['ar-hit-test-placer'] : null;
+
+            if (reticleComp) {
+                reticleComp.forceStopHitTest(true);
+            }
+
             this.resetPlacement();
             this.resetCollectionForNewExperience();
             this.currentHint = '';
             this.isStartingAR = false;
+
             if (this.arStartFallbackTimer) clearTimeout(this.arStartFallbackTimer);
             this.arStartFallbackTimer = null;
+
             this.stopVoice(true);
 
-            var scene = this.el.sceneEl || this.el;
             var showHome = () => {
                 if (this.welcomeEntryNoteEl) this.welcomeEntryNoteEl.innerText = '';
+
                 if (this.startExperienceEl) {
                     this.startButtonState = this.isAppReady ? 'ready' : 'loading';
                     this.startExperienceEl.disabled = !this.isAppReady;
                     this.setStartButtonText();
                 }
+
                 if (this.welcomeOverlayEl) this.welcomeOverlayEl.classList.remove('hidden');
+
                 this.updateLanguagePanelPosition();
                 this.updateHintKey('hint.scan.search');
+
                 if (this.homeBgmEnabled) this.playHomeBgm();
             };
 
             try {
-                if (scene && scene.is && (scene.is('ar-mode') || scene.is('vr-mode'))) {
+                var session = null;
+                if (scene && scene.renderer && scene.renderer.xr) {
+                    session = scene.renderer.xr.getSession();
+                }
+
+                if (session) {
+                    var didShowHome = false;
+                    var safeShowHome = () => {
+                        if (didShowHome) return;
+                        didShowHome = true;
+                        setTimeout(showHome, 180);
+                    };
+
+                    session.addEventListener('end', safeShowHome, { once: true });
+
                     if (scene.exitVR) {
                         scene.exitVR();
-                    } else if (scene.renderer && scene.renderer.xr) {
-                        var session = scene.renderer.xr.getSession();
-                        if (session) session.end();
+                    } else {
+                        session.end();
                     }
-                    setTimeout(showHome, 300);
-                } else {
-                    showHome();
+
+                    setTimeout(safeShowHome, 900);
+                    return;
                 }
+
+                if (scene && scene.is && (scene.is('ar-mode') || scene.is('vr-mode')) && scene.exitVR) {
+                    scene.exitVR();
+                    setTimeout(showHome, 500);
+                    return;
+                }
+
+                showHome();
             } catch (error) {
                 console.warn('[Return home] exit AR failed', error);
                 showHome();
@@ -2811,26 +2842,37 @@
         schema: {
           target: { type: 'selector' }
         },
+
         init: function () {
           this.xrHitTestSource = null;
           this.viewerSpace = null;
           this.refSpace = null;
+          this.refSpaceType = '';
           this.groundYOffset = -0.08;
-          this.hasPlaced = false; // [修复一] 放置锁，防止幽灵光圈持续跟随
+
+          this.hasPlaced = false;
           this.lastHintMessage = '';
           this.lastReticleStatusTime = 0;
           this.reticleStatus = '';
-          this.refSpaceType = '';
-          this._hitTestSessionListenersBound = false;
+
           this.activeSession = null;
-          this.hitTestInitRetryTimer = null;
-          this.hitTestInitAttempts = 0;
-          this.hitTestInitializing = false;
           this.onXRSelect = null;
           this.onXREnd = null;
 
+          this.hitTestInitRetryTimer = null;
+          this.hitTestInitAttempts = 0;
+          this.hitTestInitializing = false;
+          this.hitTestReady = false;
+
+          this.el.setAttribute('visible', 'false');
+
           this.el.sceneEl.addEventListener('enter-vr', () => {
+            this.forceStopHitTest(false);
             this.scheduleHitTestInit(120);
+          });
+
+          this.el.sceneEl.addEventListener('exit-vr', () => {
+            this.forceStopHitTest(true);
           });
 
           this.el.sceneEl.addEventListener('placement-reset', () => {
@@ -2839,15 +2881,26 @@
             this.lastReticleStatusTime = 0;
             this.reticleStatus = '';
             this.el.setAttribute('visible', 'false');
-            if (!this.xrHitTestSource || !this.refSpace) {
-              this.scheduleHitTestInit(80);
+
+            var session = this.getXRSession();
+            if (session) {
+              if (!this.xrHitTestSource || !this.refSpace) {
+                this.scheduleHitTestInit(80);
+              }
             }
           });
-
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.resetHitTestState(true);
-          });
         },
+
+        getXRSession: function() {
+          var sceneEl = this.el.sceneEl;
+          if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return null;
+          try {
+            return sceneEl.renderer.xr.getSession();
+          } catch (error) {
+            return null;
+          }
+        },
+
         scheduleHitTestInit: function(delay) {
           if (this.hitTestInitRetryTimer) {
             clearTimeout(this.hitTestInitRetryTimer);
@@ -2859,113 +2912,126 @@
             this.initHitTestSession();
           }, delay || 100);
         },
+
         initHitTestSession: function() {
-            var sceneEl = this.el.sceneEl;
-            if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return;
+          if (this.hitTestInitializing) return;
 
-            if (!sceneEl.is('ar-mode') && !sceneEl.is('vr-mode')) {
-              this.hitTestInitAttempts++;
-              if (this.hitTestInitAttempts > 20) {
-                console.warn('[AR] Scene did not enter ar-mode after retries; stop hit-test init.');
-                this.hitTestInitializing = false;
-                this.hitTestInitAttempts = 0;
-                return;
-              }
-              console.warn('[AR] Waiting for ar-mode before hit-test init.', this.hitTestInitAttempts);
-              this.scheduleHitTestInit(120);
+          var sceneEl = this.el.sceneEl;
+          if (!sceneEl || !sceneEl.renderer || !sceneEl.renderer.xr) return;
+
+          var session = this.getXRSession();
+
+          if (!session) {
+            this.hitTestInitAttempts++;
+            if (this.hitTestInitAttempts > 30) {
+              console.warn('[AR] No XR session after retries; stop hit-test init.');
+              this.hitTestInitAttempts = 0;
+              this.hitTestInitializing = false;
+              this.emitHintKey('hint.scan.hitError');
               return;
             }
+            console.warn('[AR] Waiting for XR session before hit-test init.', this.hitTestInitAttempts);
+            this.scheduleHitTestInit(120);
+            return;
+          }
 
-            var session = sceneEl.renderer.xr.getSession();
-            if (!session) {
-              this.hitTestInitAttempts++;
-              if (this.hitTestInitAttempts > 20) {
-                console.warn('[AR] No XR session after retries; stop hit-test init.');
-                this.hitTestInitializing = false;
-                this.hitTestInitAttempts = 0;
-                this.emitHintKey('hint.scan.hitError');
-                return;
-              }
-              console.warn('[AR] No XR session yet; retry hit-test init shortly.', this.hitTestInitAttempts);
-              this.scheduleHitTestInit(120);
-              return;
-            }
+          this.hitTestInitializing = true;
+          this.hitTestReady = false;
+          this.hitTestInitAttempts = 0;
 
-            if (this.hitTestInitializing) return;
-            this.hitTestInitializing = true;
-            this.hitTestInitAttempts = 0;
+          if (this.activeSession !== session) {
+            this.detachSessionListeners();
+            this.activeSession = session;
+            this.attachSessionListeners(session);
+          }
 
-            if (this.activeSession !== session) {
-              this.detachSessionListeners();
-              this.activeSession = session;
-              this.attachSessionListeners(session);
-            }
+          this.cancelHitTestSource();
+          this.viewerSpace = null;
+          this.refSpace = null;
+          this.refSpaceType = '';
+          this.el.setAttribute('visible', 'false');
 
-            this.resetHitTestState(true, { keepSessionListeners: true });
-            this.hitTestInitializing = true;
-            
-            session.requestReferenceSpace('viewer').then((space) => {
+          console.log('[AR] Starting hit-test init for current XR session');
+
+          session.requestReferenceSpace('viewer')
+            .then((space) => {
               this.viewerSpace = space;
               console.log('[AR] viewerSpace ready');
               return session.requestHitTestSource({ space: this.viewerSpace });
-            }).then((hitTestSource) => {
+            })
+            .then((hitTestSource) => {
               this.xrHitTestSource = hitTestSource;
+              this.hitTestReady = true;
               this.hitTestInitializing = false;
               console.log('[AR] hitTestSource ready');
-            }).catch((err) => {
+            })
+            .catch((err) => {
+              this.hitTestReady = false;
               this.hitTestInitializing = false;
               console.warn('[AR] hitTestSource failed', err);
               this.emitHintKey('hint.scan.hitError');
             });
 
-            session.requestReferenceSpace('local-floor').then((space) => {
+          session.requestReferenceSpace('local-floor')
+            .then((space) => {
               this.refSpace = space;
               this.refSpaceType = 'local-floor';
               console.log('[AR] refSpace ready: local-floor');
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.warn('[AR] local-floor failed, fallback to local', err);
               return session.requestReferenceSpace('local');
-            }).then((space) => {
+            })
+            .then((space) => {
               if (!this.refSpace && space) {
                 this.refSpace = space;
                 this.refSpaceType = 'local';
                 console.log('[AR] refSpace ready: local');
               }
-            }).catch((err) => {
+            })
+            .catch((err) => {
               console.warn('[AR] refSpace failed', err);
               this.emitHintKey('hint.scan.refError');
             });
         },
+
         attachSessionListeners: function(session) {
           if (!session) return;
 
           this.onXREnd = () => {
-            this.resetHitTestState(true);
-            this.detachSessionListeners();
+            console.log('[AR] XR session ended');
+            this.forceStopHitTest(true);
           };
 
-          this.onXRSelect = (event) => {
+          this.onXRSelect = () => {
             if (!this.el.getAttribute('visible')) return;
-            if (this.hasPlaced) return; // [淇涓€] 宸叉斁缃垯鎷︽埅閲嶅瑙﹀彂
+            if (this.hasPlaced) return;
+
             var anchorEl = this.data.target;
             if (!anchorEl) return;
 
             var reticlePos = new THREE.Vector3();
             this.el.object3D.getWorldPosition(reticlePos);
+
             var correctedAnchorPosition = new THREE.Vector3().copy(reticlePos);
             correctedAnchorPosition.y += this.groundYOffset;
+
             anchorEl.setAttribute('position', { x: 0, y: 0, z: 0 });
             anchorEl.setAttribute('visible', 'true');
-            this.el.sceneEl.emit('monster-spawned', { position: correctedAnchorPosition, reticlePosition: reticlePos });
-            // [淇涓€] 鏀剧疆鍚庨攣瀹氬苟闅愯棌鍏夊湀
+
+            this.el.sceneEl.emit('monster-spawned', {
+              position: correctedAnchorPosition,
+              reticlePosition: reticlePos
+            });
+
             this.hasPlaced = true;
             this.el.setAttribute('visible', 'false');
           };
 
           session.addEventListener('end', this.onXREnd);
           session.addEventListener('select', this.onXRSelect);
-          this._hitTestSessionListenersBound = true;
         },
+
         detachSessionListeners: function() {
           if (this.activeSession) {
             try {
@@ -2979,47 +3045,57 @@
           this.onXREnd = null;
           this.onXRSelect = null;
           this.activeSession = null;
-          this._hitTestSessionListenersBound = false;
         },
-        resetHitTestState: function(cancelSource, options) {
-          var opts = options || {};
-          if (this.hitTestInitRetryTimer) {
-            clearTimeout(this.hitTestInitRetryTimer);
-            this.hitTestInitRetryTimer = null;
-          }
 
-          if (cancelSource && this.xrHitTestSource && this.xrHitTestSource.cancel) {
+        cancelHitTestSource: function() {
+          if (this.xrHitTestSource && this.xrHitTestSource.cancel) {
             try {
               this.xrHitTestSource.cancel();
             } catch (error) {
               console.warn('[AR] hitTestSource cancel failed', error);
             }
           }
-            this.hasPlaced = false;
-            this.xrHitTestSource = null;
-            this.viewerSpace = null;
-            this.refSpace = null;
-            this.refSpaceType = '';
-            this.lastHintMessage = '';
-            this.reticleStatus = '';
-            this.lastReticleStatusTime = 0;
-            this.hitTestInitializing = false;
-            this.hitTestInitAttempts = 0;
-            if (!opts.keepSessionListeners) {
-              this.detachSessionListeners();
-            }
-            this.el.setAttribute('visible', 'false');
+          this.xrHitTestSource = null;
         },
+
+        forceStopHitTest: function(detachListeners) {
+          if (this.hitTestInitRetryTimer) {
+            clearTimeout(this.hitTestInitRetryTimer);
+            this.hitTestInitRetryTimer = null;
+          }
+
+          this.cancelHitTestSource();
+
+          this.viewerSpace = null;
+          this.refSpace = null;
+          this.refSpaceType = '';
+          this.hitTestInitializing = false;
+          this.hitTestReady = false;
+          this.hitTestInitAttempts = 0;
+          this.hasPlaced = false;
+          this.lastHintMessage = '';
+          this.lastReticleStatusTime = 0;
+          this.reticleStatus = '';
+
+          if (detachListeners) {
+            this.detachSessionListeners();
+          }
+
+          this.el.setAttribute('visible', 'false');
+        },
+
         emitHint: function(message) {
           if (this.lastHintMessage === message) return;
           this.lastHintMessage = message;
           this.el.sceneEl.emit('hint-message', { message: message });
         },
+
         emitHintKey: function(key, options) {
           if (this.lastHintMessage === key) return;
           this.lastHintMessage = key;
           this.el.sceneEl.emit('hint-key', { key: key, options: options || {} });
         },
+
         emitStatusHint: function(status, key) {
           var now = performance.now();
           if (this.reticleStatus === status && now - this.lastReticleStatusTime < 1000) return;
@@ -3027,41 +3103,52 @@
           this.lastReticleStatusTime = now;
           this.emitHintKey(key);
         },
+
         tick: function () {
-          if (this.hasPlaced) return; // [修复一] 已放置，停止光圈更新
-          if (!this.el.sceneEl.is('ar-mode')) return;
-          var frame = this.el.sceneEl.frame;
+          if (this.hasPlaced) return;
+
+          var sceneEl = this.el.sceneEl;
+          if (!sceneEl) return;
+
+          var session = this.getXRSession();
+          if (!session) {
+            this.el.setAttribute('visible', 'false');
+            return;
+          }
+
+          var frame = sceneEl.frame;
           if (!frame) return;
 
-          var xrHitTestSource = this.xrHitTestSource;
-          var refSpace = this.refSpace;
-
-          if (!xrHitTestSource) {
+          if (!this.xrHitTestSource) {
             this.el.setAttribute('visible', 'false');
             this.emitStatusHint('hit-test-loading', 'hint.scan.hitLoading');
             return;
           }
 
-          if (!refSpace) {
+          if (!this.refSpace) {
             this.el.setAttribute('visible', 'false');
             this.emitStatusHint('ref-space-loading', 'hint.scan.refLoading');
             return;
           }
 
-          if (xrHitTestSource && refSpace) {
-            var hitTestResults = frame.getHitTestResults(xrHitTestSource);
-            if (hitTestResults.length > 0) {
-              var hit = hitTestResults[0];
-              var pose = hit.getPose(refSpace);
-              this.el.setAttribute('visible', 'true');
-              this.el.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
-              // [\u65b0\u589e] \u6293\u5230\u5730\u9762\u65f6\uff0c\u7ed9\u4e88\u5f3a\u70c8\u7684\u7eff\u8272\u89c6\u89c9\u786e\u8ba4
-              if (!this.hasPlaced) this.emitStatusHint('hit-found', 'hint.scan.found');
-            } else {
-              this.el.setAttribute('visible', 'false');
-              // [\u65b0\u589e] \u4e22\u5931\u5e73\u9762\u65f6\u5f15\u5bfc\u7528\u6237\u79fb\u52a8\u624b\u673a\u5bfb\u627e\u7279\u5f81\u70b9
-              if (!this.hasPlaced) this.emitStatusHint('hit-searching', 'hint.scan.search');
-            }
+          var hitTestResults = frame.getHitTestResults(this.xrHitTestSource);
+
+          if (hitTestResults.length > 0) {
+            var hit = hitTestResults[0];
+            var pose = hit.getPose(this.refSpace);
+            if (!pose) return;
+
+            this.el.object3D.position.set(
+              pose.transform.position.x,
+              pose.transform.position.y,
+              pose.transform.position.z
+            );
+
+            this.el.setAttribute('visible', 'true');
+            this.emitStatusHint('hit-found', 'hint.scan.found');
+          } else {
+            this.el.setAttribute('visible', 'false');
+            this.emitStatusHint('hit-searching', 'hint.scan.search');
           }
         }
       });
