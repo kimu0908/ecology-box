@@ -2159,7 +2159,10 @@
 
           switch (this.mode) {
             case 'pufferfish':
-              if (surfaceDistance < 0.6) {
+              var PUFFER_CLOSE_DISTANCE = 0.6;
+              var PUFFER_RECOVER_DISTANCE = 0.8;
+
+              if (surfaceDistance < PUFFER_CLOSE_DISTANCE) {
                  pMesh.scale.lerp(this.visualScales.pufferfishPressed, 0.15);
                  if (!this.wasPufferfishPressed) {
                     this.wasPufferfishPressed = true;
@@ -2173,6 +2176,11 @@
                     this.pufferfishHintTimer = setTimeout(() => {
                        if (this.mode === 'pufferfish' && this.pufferfishHintState === 'close') this.updateHintKey('hint.puffer.back', { lockMs: 3000 });
                     }, 3000);
+                 }
+              } else if (surfaceDistance < PUFFER_RECOVER_DISTANCE) {
+                 pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
+                 if (this.wasPufferfishPressed && this.pufferfishHintState === 'close' && performance.now() >= this.hintLockedUntil) {
+                    this.updateHintKey('hint.puffer.back', { lockMs: 2000, force: true });
                  }
               } else {
                  pMesh.scale.lerp(this.visualScales.pufferfishNormal, 0.15);
